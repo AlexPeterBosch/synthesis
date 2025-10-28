@@ -1,0 +1,181 @@
+{
+  "version": "1.0.0",
+  "project": "synthesis",
+  "last_updated": "2025-10-28",
+  
+  "nlp": {
+    "language": "en",
+    "stopwords": {
+      "count": 180,
+      "file": "specs/stopwords.json",
+      "apply_before_lemmatization": true
+    },
+    "lemmatization": {
+      "library": "spacy",
+      "model": "en_core_web_sm",
+      "apply_after_stopwords": true
+    },
+    "ngrams": {
+      "algorithm": "two_pass",
+      "pass_1": {
+        "type": "bigrams",
+        "distance": 0,
+        "weight": 3
+      },
+      "pass_2": {
+        "type": "4gram_window",
+        "distance_1_weight": 2,
+        "distance_2_weight": 1
+      },
+      "paragraph_breaks_stop_scanning": true,
+      "paragraph_delimiter": "\\n\\n"
+    },
+    "preprocessing": {
+      "remove_urls": true,
+      "remove_special_chars": true,
+      "remove_standalone_numbers": true,
+      "preserve_numbers_in_words": true
+    }
+  },
+  
+  "graph": {
+    "edge_weights": {
+      "calculation": "additive",
+      "normalization": false,
+      "note": "Sum all co-occurrence weights, NO normalization"
+    }
+  },
+  
+  "algorithms": {
+    "louvain": {
+      "resolution": 1.0,
+      "weighted": true,
+      "stopping_criteria": 0.0001,
+      "randomize": false
+    },
+    "forceatlas2": {
+      "gravity": 1.0,
+      "scalingRatio": 20.0,
+      "strongGravityMode": true,
+      "linLogMode": false,
+      "edgeWeightInfluence": 1.0,
+      "outboundAttractionDistribution": false,
+      "adjustSizes": false,
+      "barnesHutOptimize": true,
+      "barnesHutTheta": 1.2,
+      "jitterTolerance": 1.0,
+      "iterations_small": 1000,
+      "iterations_large": 2000
+    },
+    "betweenness": {
+      "algorithm": "brandes",
+      "weighted": true,
+      "normalized": true,
+      "range": [0, 1]
+    },
+    "modularity": {
+      "formula": "newman_girvan_weighted",
+      "thresholds": {
+        "strong": 0.4,
+        "very_strong": 0.7
+      }
+    }
+  },
+  
+  "visualization": {
+    "node_sizing": {
+      "type": "linear",
+      "formula": "5 + (bc_normalized * 35)",
+      "min_pixels": 5,
+      "max_pixels": 40,
+      "ratio": "8:1"
+    },
+    "node_labels": {
+      "display_threshold_pixels": 20,
+      "percentage_shown": 30
+    },
+    "edge_thickness": {
+      "formula": "log(weight + 1)"
+    },
+    "colors": {
+      "community_assignment": "hsl_color_space",
+      "palette": "colorful",
+      "saturation": 75,
+      "lightness": 55
+    }
+  },
+  
+  "gaps": {
+    "min_community_size": 3,
+    "max_path_length": 6,
+    "density_threshold": 0.1,
+    "max_size_ratio": 10,
+    "min_gap_score": 0.4,
+    "max_gaps_returned": 3,
+    "filtering_stages": [
+      "size_filters",
+      "distance_filters",
+      "density_filters",
+      "gap_score_calculation",
+      "semantic_validation"
+    ]
+  },
+  
+  "cognitive": {
+    "states": {
+      "biased_uniform": {
+        "modularity_max": 0.4,
+        "entropy_max": 0.5,
+        "explore_ratio": 80
+      },
+      "focused_regular": {
+        "modularity_max": 0.4,
+        "density_min": 0.7,
+        "explore_ratio": 30
+      },
+      "diversified_fractal": {
+        "modularity_min": 0.4,
+        "modularity_max": 0.7,
+        "entropy_min": 0.4,
+        "entropy_max": 0.7,
+        "explore_ratio": 50,
+        "optimal": true
+      },
+      "dispersed_complex": {
+        "modularity_min": 0.7,
+        "entropy_min": 0.7,
+        "explore_ratio": 20
+      }
+    },
+    "immunity": {
+      "formula": "modularity * entropy",
+      "thresholds": {
+        "high": 0.28,
+        "medium": 0.16
+      }
+    }
+  },
+  
+  "graphrag": {
+    "subgraph_extraction": {
+      "hops": 2,
+      "method": "neighborhood"
+    },
+    "context": {
+      "top_concepts_count": 10,
+      "top_relations_count": 15,
+      "top_gaps_count": 5
+    }
+  },
+  
+  "performance": {
+    "targets": {
+      "text_processing_500w_seconds": 5,
+      "graph_construction_500n_seconds": 10,
+      "louvain_1000n_seconds": 2,
+      "forceatlas2_1000n_seconds": 30,
+      "betweenness_500n_seconds": 5,
+      "graphrag_query_seconds": 3
+    }
+  }
+}
