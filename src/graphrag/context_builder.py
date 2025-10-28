@@ -1,170 +1,193 @@
-"""Build context for AI prompts from graph data."""
+"""GraphRAG Context Builder
+
+Builds structured context for AI from graph data:
+- Top 10 concepts (by betweenness)
+- Top 15 relations (by weight)
+- Top 5 gaps
+- Graph metrics (modularity, entropy, cognitive state)
+"""
 
 import networkx as nx
-from typing import Dict, List
+from typing import Dict, List, Any
 
 
 class ContextBuilder:
-    """Build structured context for GraphRAG prompts."""
+    """Build structured context for AI from graph."""
     
-    def __init__(self):
-        """Initialize context builder with exact specifications."""
-        self.top_concepts_count = 10   # Exact specification
-        self.top_relations_count = 15  # Exact specification
-        self.top_gaps_count = 5        # Exact specification
+    # Context limits from specifications
+    TOP_CONCEPTS_COUNT = 10
+    TOP_RELATIONS_COUNT = 15
+    TOP_GAPS_COUNT = 5
     
-    def build_context(self, 
-                     subgraph: nx.Graph, 
-                     betweenness: Dict[str, float],
-                     communities: Dict[str, int],
-                     gaps: List[Dict],
-                     metrics: Dict) -> Dict:
-        """Build complete context for AI prompt.
-        
-        Context Format:
-        - Main topics (by community)
-        - Top 10 concepts (by betweenness)
-        - Top 15 relations (by weight)
-        - Top 5 gaps
-        - Graph metrics
+    def __init__(self, graph: nx.Graph, 
+                 betweenness: Dict[str, float] = None,
+                 communities: Dict[str, int] = None):
+        """Initialize context builder.
         
         Args:
-            subgraph: Relevant subgraph
-            betweenness: Betweenness centrality values
-            communities: Community assignments
-            gaps: Detected gaps
-            metrics: Graph metrics
-            
+            graph: NetworkX graph
+            betweenness: Optional betweenness centrality values
+            communities: Optional community assignments
+        """
+        self.graph = graph
+        self.betweenness = betweenness or {}
+        self.communities = communities or {}
+    
+    def build_context(self, subgraph: nx.Graph = None, 
+                     gaps: List[Dict] = None,
+                     metrics: Dict[str, float] = None) -> Dict[str, Any]:
+        """Build complete context for AI.
+        
+        Args:
+            subgraph: Optional subgraph (uses full graph if None)
+            gaps: Optional detected gaps
+            metrics: Optional graph metrics
+        
         Returns:
             Structured context dictionary
         """
+        graph_to_use = subgraph if subgraph else self.graph
+        
+        # Get top concepts
+        top_concepts = self._get_top_concepts(graph_to_use)
+        
+        # Get top relations
+        top_relations = self._get_top_relations(graph_to_use)
+        
+        # Get main topics (by community)
+        main_topics = self._get_main_topics(graph_to_use)
+        
+        # Build context
         context = {
-            "main_topics": self._get_main_topics(subgraph, communities),
-            "top_concepts": self._get_top_concepts(subgraph, betweenness),
-            "top_relations": self._get_top_relations(subgraph),
-            "top_gaps": gaps[:self.top_gaps_count],
-            "metrics": metrics
+            "main_topics": main_topics,
+            "top_concepts": top_concepts,
+            "top_relations": top_relations,
+            "top_gaps": gaps[:self.TOP_GAPS_COUNT] if gaps else [],
+            "metrics": metrics or {},
+            "graph_size": {
+                "nodes": graph_to_use.number_of_nodes(),
+                "edges": graph_to_use.number_of_edges()
+            }
         }
         
         return context
     
-    def _get_main_topics(self, subgraph: nx.Graph, communities: Dict[str, int]) -> List[Dict]:
-        """Get main topics organized by community.
-        
-        Args:
-            subgraph: Graph
-            communities: Community assignments
-            
-        Returns:
-            List of topic dictionaries
-        """
-        topics = {}
-        
-        for node in subgraph.nodes():
-            if node in communities:
-                comm_id = communities[node]
-                if comm_id not in topics:
-                    topics[comm_id] = []
-                topics[comm_id].append(node)
-        
-        return [
-            {"community_id": comm_id, "concepts": concepts}
-            for comm_id, concepts in topics.items()
-        ]
-    
-    def _get_top_concepts(self, subgraph: nx.Graph, betweenness: Dict[str, float]) -> List[Dict]:
+    def _get_top_concepts(self, graph: nx.Graph) -> List[Dict[str, Any]]:
         """Get top concepts by betweenness centrality.
         
-        Specification: Top 10 concepts
-        
         Args:
-            subgraph: Graph
-            betweenness: Betweenness centrality values
-            
+            graph: Graph to analyze
+        
         Returns:
-            List of top concepts with their betweenness values
+            List of top concept dictionaries
         """
-        # Filter betweenness for nodes in subgraph
-        subgraph_bc = {
-            node: bc for node, bc in betweenness.items()
-            if node in subgraph.nodes()
-        }
+        # Get betweenness values for nodes in graph
+        concepts = []
         
-        # Sort by betweenness
-        sorted_concepts = sorted(
-            subgraph_bc.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )
+        for node in graph.nodes():
+            bc = self.betweenness.get(node, 0)
+            comm = self.communities.get(node, -1)
+            
+            concepts.append({
+                "lemma": str(node),
+                "betweenness": bc,
+                "community": comm,
+                "degree": graph.degree(node)
+            })
         
-        return [
-            {"concept": node, "betweenness": bc}
-            for node, bc in sorted_concepts[:self.top_concepts_count]
-        ]
+        # Sort by betweenness and take top N
+        concepts.sort(key=lambda x: x['betweenness'], reverse=True)
+        return concepts[:self.TOP_CONCEPTS_COUNT]
     
-    def _get_top_relations(self, subgraph: nx.Graph) -> List[Dict]:
+    def _get_top_relations(self, graph: nx.Graph) -> List[Dict[str, Any]]:
         """Get top relations by edge weight.
         
-        Specification: Top 15 relations
-        
         Args:
-            subgraph: Graph with weighted edges
-            
+            graph: Graph to analyze
+        
         Returns:
-            List of top relations with their weights
+            List of top relation dictionaries
         """
-        # Get all edges with weights
-        edges_with_weights = [
-            (u, v, data.get('weight', 1))
-            for u, v, data in subgraph.edges(data=True)
-        ]
+        relations = []
         
-        # Sort by weight
-        sorted_edges = sorted(
-            edges_with_weights,
-            key=lambda x: x[2],
-            reverse=True
-        )
+        for source, target, data in graph.edges(data=True):
+            weight = data.get('weight', 1)
+            
+            relations.append({
+                "source": str(source),
+                "target": str(target),
+                "weight": weight
+            })
         
-        return [
-            {"source": u, "target": v, "weight": w}
-            for u, v, w in sorted_edges[:self.top_relations_count]
-        ]
+        # Sort by weight and take top N
+        relations.sort(key=lambda x: x['weight'], reverse=True)
+        return relations[:self.TOP_RELATIONS_COUNT]
     
-    def format_for_llm(self, context: Dict) -> str:
-        """Format context as text for LLM prompt.
+    def _get_main_topics(self, graph: nx.Graph) -> List[str]:
+        """Get main topics from communities.
         
         Args:
-            context: Structured context dictionary
-            
+            graph: Graph to analyze
+        
         Returns:
-            Formatted text for prompt injection
+            List of main topic labels (one per community)
         """
-        sections = []
+        if not self.communities:
+            return []
         
-        # Main topics
-        sections.append("Main Topics:")
-        for topic in context["main_topics"]:
-            concepts = ", ".join(topic["concepts"][:5])  # Top 5 per community
-            sections.append(f"- Community {topic['community_id']}: {concepts}")
+        # Group nodes by community
+        community_nodes = {}
+        for node in graph.nodes():
+            comm = self.communities.get(node, -1)
+            if comm not in community_nodes:
+                community_nodes[comm] = []
+            community_nodes[comm].append(node)
         
-        # Top concepts
-        sections.append("\nKey Concepts:")
-        for concept in context["top_concepts"]:
-            sections.append(f"- {concept['concept']} (importance: {concept['betweenness']:.3f})")
+        # Get top node from each community (by betweenness)
+        main_topics = []
+        for comm, nodes in community_nodes.items():
+            if comm == -1:  # Skip uncategorized
+                continue
+            
+            # Find node with highest betweenness in community
+            top_node = max(nodes, key=lambda n: self.betweenness.get(n, 0))
+            main_topics.append(str(top_node))
         
-        # Top relations
-        sections.append("\nKey Relationships:")
-        for rel in context["top_relations"]:
-            sections.append(f"- {rel['source']} ↔ {rel['target']} (strength: {rel['weight']})")
+        return main_topics
+    
+    def format_context_for_ai(self, context: Dict[str, Any]) -> str:
+        """Format context as text for AI input.
         
-        # Gaps
-        if context["top_gaps"]:
-            sections.append("\nStructural Gaps:")
-            for gap in context["top_gaps"]:
-                sections.append(
-                    f"- Gap between communities {gap['community_1']} and {gap['community_2']} "
-                    f"(score: {gap['gap_score']:.2f})"
-                )
+        Args:
+            context: Context dictionary
         
-        return "\n".join(sections)
+        Returns:
+            Formatted text string
+        """
+        formatted = []
+        
+        formatted.append("GRAPH CONTEXT:")
+        formatted.append(f"\nGraph size: {context['graph_size']['nodes']} nodes, {context['graph_size']['edges']} edges")
+        
+        if context['main_topics']:
+            formatted.append(f"\nMain topics: {', '.join(context['main_topics'])}")
+        
+        formatted.append(f"\nTop {len(context['top_concepts'])} concepts:")
+        for concept in context['top_concepts']:
+            formatted.append(f"  - {concept['lemma']} (BC: {concept['betweenness']:.3f}, community: {concept['community']})")
+        
+        formatted.append(f"\nTop {len(context['top_relations'])} relations:")
+        for rel in context['top_relations']:
+            formatted.append(f"  - {rel['source']} ↔ {rel['target']} (weight: {rel['weight']})")
+        
+        if context['top_gaps']:
+            formatted.append(f"\nTop {len(context['top_gaps'])} structural gaps:")
+            for i, gap in enumerate(context['top_gaps'], 1):
+                formatted.append(f"  {i}. Gap between communities {gap.get('community_a_id', '?')} and {gap.get('community_b_id', '?')} (score: {gap.get('gap_score', 0):.2f})")
+        
+        if context['metrics']:
+            formatted.append("\nGraph metrics:")
+            for key, value in context['metrics'].items():
+                formatted.append(f"  - {key}: {value}")
+        
+        return "\n".join(formatted)

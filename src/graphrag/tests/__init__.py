@@ -1,1 +1,1 @@
-"""Tests for GraphRAG module."""
+"""GraphRAG module tests"""
