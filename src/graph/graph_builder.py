@@ -1,47 +1,63 @@
-"""Build knowledge graphs from text."""
+"""Graph Construction
+
+Builds NetworkX graph from n-grams with EXACT weight calculation:
+- ADDITIVE weighting (sum all co-occurrences)
+- NO normalization
+- Raw weights used in all algorithms
+"""
 
 import networkx as nx
-from typing import Dict, Tuple
+from typing import List, Tuple, Dict
+from collections import defaultdict
 
 
 class GraphBuilder:
-    """Build NetworkX graphs from n-gram edges."""
+    """Build graph from n-grams following exact InfraNodus specifications."""
     
     def __init__(self):
         """Initialize graph builder."""
         self.graph = None
     
-    def build_from_edges(self, edges: Dict[Tuple[str, str], int]) -> nx.Graph:
-        """Build undirected graph from weighted edges.
+    def build_from_ngrams(self, ngrams: List[Tuple[str, str, int]]) -> nx.Graph:
+        """Build graph from n-grams with ADDITIVE weights.
         
-        Edge weights follow additive principle (NO normalization).
+        Critical: NO normalization applied!
         
         Args:
-            edges: Dictionary mapping (node1, node2) to weight
-            
+            ngrams: List of (source, target, weight) tuples
+        
         Returns:
-            NetworkX Graph with weighted edges
+            NetworkX graph with weighted edges
         """
-        G = nx.Graph()
+        edge_weights = defaultdict(int)
         
-        for (node1, node2), weight in edges.items():
-            G.add_edge(node1, node2, weight=weight)
+        # Accumulate weights (ADDITIVE)
+        for source, target, weight in ngrams:
+            # Create undirected edge key (sorted order)
+            edge_key = tuple(sorted([source, target]))
+            edge_weights[edge_key] += weight
         
-        self.graph = G
-        return G
+        # Build NetworkX graph
+        graph = nx.Graph()
+        
+        for (source, target), final_weight in edge_weights.items():
+            graph.add_edge(source, target, weight=final_weight)
+        
+        self.graph = graph
+        return graph
     
-    def get_graph_metrics(self) -> Dict:
-        """Calculate basic graph metrics.
+    def get_graph_stats(self) -> Dict[str, int]:
+        """Get basic graph statistics.
         
         Returns:
-            Dictionary of graph metrics
+            Dictionary with node count, edge count, etc.
         """
-        if self.graph is None:
+        if not self.graph:
             return {}
         
         return {
             "node_count": self.graph.number_of_nodes(),
             "edge_count": self.graph.number_of_edges(),
-            "density": nx.density(self.graph),
-            "is_connected": nx.is_connected(self.graph)
+            "avg_degree": sum(dict(self.graph.degree()).values()) / self.graph.number_of_nodes(),
+            "density": nx.density(self.graph)
         }

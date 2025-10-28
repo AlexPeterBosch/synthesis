@@ -1,1 +1,1 @@
-"""Tests for graph module."""
+"""Graph module tests"""
