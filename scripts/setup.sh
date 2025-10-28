@@ -1,101 +1,85 @@
 #!/bin/bash
 # Synthesis Setup Script
-# Sets up development environment for Synthesis project
+# Sets up development environment
 
 set -e
 
-echo "🚀 Setting up Synthesis development environment..."
+echo "=== Synthesis Setup ==="
+echo ""
 
 # Check Python version
 echo "Checking Python version..."
 python_version=$(python3 --version 2>&1 | awk '{print $2}')
-required_version="3.10"
+echo "Python version: $python_version"
 
-if [ "$(printf '%s\n' "$required_version" "$python_version" | sort -V | head -n1)" != "$required_version" ]; then
-    echo "❌ Error: Python 3.10+ required. Found: $python_version"
+if ! python3 -c 'import sys; exit(0 if sys.version_info >= (3, 10) else 1)'; then
+    echo "Error: Python 3.10+ required"
     exit 1
 fi
-echo "✅ Python version: $python_version"
-
-# Create virtual environment
-echo "Creating virtual environment..."
-python3 -m venv venv
-source venv/bin/activate
-echo "✅ Virtual environment created"
-
-# Upgrade pip
-echo "Upgrading pip..."
-pip install --upgrade pip
-echo "✅ Pip upgraded"
 
 # Install Python dependencies
+echo ""
 echo "Installing Python dependencies..."
-pip install -r requirements.txt
-echo "✅ Python dependencies installed"
+pip install -r requirements.txt --break-system-packages
 
-# Install spaCy model
-echo "Installing spaCy English model..."
-python -m spacy download en_core_web_sm
-echo "✅ spaCy model installed"
+# Download spaCy model
+echo ""
+echo "Downloading spaCy English model..."
+python3 -m spacy download en_core_web_sm
 
 # Setup Prisma
+echo ""
 echo "Setting up Prisma..."
-prisma generate --schema=database/schema.prisma
-echo "✅ Prisma client generated"
-
-# Check PostgreSQL
-echo "Checking PostgreSQL..."
-if command -v psql &> /dev/null; then
-    echo "✅ PostgreSQL found"
-else
-    echo "⚠️  PostgreSQL not found. Please install PostgreSQL 15+"
+if [ -f "database/schema.prisma" ]; then
+    cd database
+    echo "Generating Prisma client..."
+    prisma generate
+    cd ..
 fi
 
-# Setup frontend
-echo "Setting up frontend..."
-cd src/frontend
-if command -v npm &> /dev/null; then
-    npm install
-    echo "✅ Frontend dependencies installed"
-else
-    echo "⚠️  npm not found. Please install Node.js 18+"
-fi
-cd ../..
-
-# Create .env template
-echo "Creating .env template..."
-cat > .env.example << 'EOF'
+# Create .env file if it doesn't exist
+if [ ! -f ".env" ]; then
+    echo ""
+    echo "Creating .env file..."
+    cat > .env << EOF
 # Database
 DATABASE_URL="postgresql://user:password@localhost:5432/synthesis"
 
 # API
-API_HOST="localhost"
 API_PORT=8000
+API_HOST=0.0.0.0
 
 # Claude API
-CLAUDE_API_KEY="your-api-key-here"
+CLAUDE_API_KEY=your_api_key_here
 
-# n8n
-N8N_HOST="localhost"
-N8N_PORT=5678
+# Environment
+ENVIRONMENT=development
 EOF
-echo "✅ .env.example created"
+    echo ".env file created - please update with your credentials"
+fi
 
-# Check if .env exists
-if [ ! -f .env ]; then
-    cp .env.example .env
-    echo "⚠️  Created .env file - please update with your credentials"
+# Frontend setup
+if [ -d "src/frontend" ]; then
+    echo ""
+    echo "Setting up frontend..."
+    cd src/frontend
+    if command -v npm &> /dev/null; then
+        npm install
+        echo "Frontend dependencies installed"
+    else
+        echo "Warning: npm not found, skipping frontend setup"
+    fi
+    cd ../..
 fi
 
 echo ""
-echo "✅ Setup complete!"
+echo "=== Setup Complete ==="
 echo ""
 echo "Next steps:"
-echo "1. Update .env with your credentials"
-echo "2. Create database: createdb synthesis"
-echo "3. Run migrations: prisma migrate dev"
+echo "1. Update .env file with your database credentials"
+echo "2. Create PostgreSQL database: createdb synthesis"
+echo "3. Run database migrations: cd database && prisma migrate dev"
 echo "4. Seed database: python database/seed.py"
-echo "5. Start API: uvicorn src.api.main:app --reload"
-echo "6. Start frontend: cd src/frontend && npm run dev"
+echo "5. Start API server: uvicorn src.api.main:app --reload"
+echo "6. Start frontend: cd src/frontend && npm start"
 echo ""
-echo "Happy coding! 🎉"
