@@ -1,4 +1,4 @@
-# InfraNodus Replica: QUICK REFERENCE GUIDE
+# Synthesis: QUICK REFERENCE GUIDE
 ## Essential Specifications at a Glance
 
 ---
@@ -26,7 +26,7 @@ CRITICAL: Paragraph breaks (\n\n) STOP scanning!
 
 ---
 
-## 📢 EXACT PARAMETERS
+## 🔢 EXACT PARAMETERS
 
 ### **Edge Weights:**
 ```python
@@ -257,12 +257,28 @@ Expected: state = "diversified_fractal"
 
 ---
 
+## 📁 FILE LOCATIONS
+
+```
+/mnt/user-data/outputs/
+├── InfraNodus_Development_Plan_UPDATED.md      ← Phases 1-5
+├── InfraNodus_Development_Plan_PART2.md        ← Phases 6-9
+├── InfraNodus_Master_Prompt_UPDATED.md         ← Daily prompts
+├── PROJECT_SUMMARY_UPDATED.md                  ← What changed
+└── QUICK_REFERENCE.md                          ← This file
+
+/mnt/user-data/uploads/
+└── Perplexity_research_questions_in-depth_answer_of_infranodus_.py  ← Source research
+```
+
+---
+
 ## 🚀 GETTING STARTED
 
 **Week 1-2: Database**
 ```bash
-createdb synthesis
-psql synthesis < schema.sql
+createdb infranodus_replica
+psql infranodus_replica < schema.sql
 npx prisma migrate dev
 ```
 
@@ -294,7 +310,7 @@ python test_algorithms.py
 
 **Week 12-14: Visualization**
 ```bash
-cd src/frontend
+cd infranodus-ui
 npm install sigma graphology
 npm start
 ```
@@ -331,6 +347,22 @@ npm start
 
 **Problem:** GraphRAG not relevant  
 **Solution:** Verify 2-hop extraction, check context format
+
+---
+
+## 📞 HELP
+
+**If stuck:**
+1. Check QUICK_REFERENCE (this file)
+2. Review Master Prompt for exact code
+3. Consult Development Plan for details
+4. Verify against research specifications
+
+**Remember:**
+- Use EXACT values (no approximation)
+- Test each phase before moving on
+- English-only keeps it simple
+- 12-14 weeks is realistic
 
 ---
 
