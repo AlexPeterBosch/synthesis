@@ -1,0 +1,1 @@
+"""Structural gap detection module."""
