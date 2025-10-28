@@ -1,335 +1,302 @@
 {
   "version": "1.0.0",
-  "project": "synthesis",
-  "last_updated": "2025-10-28",
-  
-  "nlp_validation": {
-    "stopwords": {
-      "rule": "Must be applied BEFORE lemmatization",
-      "count_min": 180,
-      "file_exists": "specs/stopwords.json",
-      "validation": "Check stopwords.count >= 180 and apply_before_lemmatization == true"
-    },
-    "lemmatization": {
-      "rule": "Must use spaCy en_core_web_sm",
-      "required_library": "spacy",
-      "required_model": "en_core_web_sm",
-      "validation": "Verify spaCy model loaded and lemmatization occurs AFTER stopwords"
-    },
-    "ngrams": {
-      "algorithm": "two_pass",
-      "pass_1": {
-        "type": "bigrams",
-        "distance": 0,
-        "weight": 3,
-        "validation": "Adjacent words must have weight exactly 3"
+  "validation_rules": {
+    "nlp": {
+      "stopwords_count": {
+        "rule": "Must have exactly 180 stopwords",
+        "expected": 180,
+        "critical": true
       },
-      "pass_2": {
-        "type": "4gram_window",
-        "distance_1_weight": 2,
-        "distance_2_weight": 1,
-        "validation": "Verify distance-based weights: 0→3, 1→2, 2→1"
+      "processing_order": {
+        "rule": "Stopwords MUST be removed BEFORE lemmatization",
+        "steps": [
+          "tokenization",
+          "special_char_removal",
+          "url_removal",
+          "number_filtering",
+          "stopwords_removal",
+          "lemmatization",
+          "entity_extraction"
+        ],
+        "critical": true
+      },
+      "ngram_weights": {
+        "rule": "TWO-PASS algorithm with exact weights",
+        "pass_1_bigram_weight": 3,
+        "pass_2_distance_1_weight": 2,
+        "pass_2_distance_2_weight": 1,
+        "critical": true
       },
       "paragraph_breaks": {
-        "rule": "MUST stop scanning at paragraph breaks (\\n\\n)",
-        "validation": "Test that algorithm resets at paragraph boundaries"
+        "rule": "Paragraph breaks (\\n\\n) MUST stop n-gram scanning",
+        "delimiter": "\\n\\n",
+        "critical": true
       }
     },
-    "preprocessing": {
-      "order": [
-        "tokenize",
-        "remove_special_chars",
-        "remove_urls",
-        "remove_numbers",
-        "remove_stopwords",
-        "lemmatize"
-      ],
-      "validation": "Verify exact order is followed"
-    }
-  },
-  
-  "graph_validation": {
-    "edge_weights": {
-      "calculation": "additive",
-      "normalization": false,
-      "rule": "Sum all co-occurrence weights, NO normalization",
-      "validation": "Verify weights are raw sums, not normalized/averaged"
-    },
-    "weight_accumulation": {
-      "rule": "Same word pair appearing multiple times must ADD weights",
-      "example": "5 bigram occurrences = 3+3+3+3+3 = 15",
-      "validation": "Test repeated co-occurrences accumulate correctly"
-    }
-  },
-  
-  "algorithm_validation": {
-    "louvain": {
-      "resolution": {
-        "value": 1.0,
-        "tolerance": 0.0,
-        "validation": "Must be exactly 1.0"
-      },
-      "weighted": {
-        "value": true,
-        "validation": "Must use edge weights"
-      },
-      "stopping_criteria": {
-        "value": 0.0001,
-        "validation": "ΔQ must be less than 0.0001 to stop"
+    "graph": {
+      "edge_weights": {
+        "rule": "ADDITIVE weighting with NO normalization",
+        "calculation": "sum",
+        "normalization": false,
+        "critical": true
       }
     },
-    "forceatlas2": {
-      "gravity": {
-        "value": 1.0,
-        "validation": "Must be exactly 1.0"
-      },
-      "scalingRatio": {
-        "value": 20.0,
-        "validation": "Must be exactly 20.0"
-      },
-      "strongGravityMode": {
-        "value": true,
-        "validation": "Must be true"
-      },
-      "linLogMode": {
-        "value": false,
-        "validation": "Must be false"
-      },
-      "edgeWeightInfluence": {
-        "value": 1.0,
-        "validation": "Must be exactly 1.0"
-      },
-      "barnesHutOptimize": {
-        "value": true,
-        "validation": "Must be enabled"
-      },
-      "barnesHutTheta": {
-        "value": 1.2,
-        "validation": "Must be exactly 1.2"
-      }
-    },
-    "betweenness": {
-      "algorithm": {
-        "value": "brandes",
-        "validation": "Must use Brandes' algorithm"
-      },
-      "weighted": {
-        "value": true,
-        "validation": "Must use edge weights"
-      },
-      "normalized": {
-        "value": true,
-        "validation": "Must normalize to range [0, 1]"
-      }
-    },
-    "modularity": {
-      "formula": {
-        "value": "newman_girvan_weighted",
-        "validation": "Must use Newman-Girvan weighted formula"
-      },
-      "thresholds": {
-        "strong": {
-          "value": 0.4,
-          "validation": "Q > 0.4 indicates strong community structure"
+    "algorithms": {
+      "louvain": {
+        "resolution": {
+          "rule": "Must use resolution = 1.0",
+          "expected": 1.0,
+          "critical": false
         },
-        "very_strong": {
-          "value": 0.7,
-          "validation": "Q > 0.7 indicates very strong structure"
+        "weighted": {
+          "rule": "Must use weighted = True",
+          "expected": true,
+          "critical": true
+        },
+        "stopping_criteria": {
+          "rule": "Stop when ΔQ < 0.0001",
+          "expected": 0.0001,
+          "critical": false
+        }
+      },
+      "forceatlas2": {
+        "gravity": {
+          "expected": 1.0,
+          "critical": false
+        },
+        "scaling_ratio": {
+          "expected": 20.0,
+          "critical": false
+        },
+        "strong_gravity_mode": {
+          "expected": true,
+          "critical": false
+        },
+        "lin_log_mode": {
+          "expected": false,
+          "critical": false
+        },
+        "barnes_hut_optimize": {
+          "expected": true,
+          "critical": false
+        },
+        "barnes_hut_theta": {
+          "expected": 1.2,
+          "critical": false
+        }
+      },
+      "betweenness": {
+        "algorithm": {
+          "rule": "Must use Brandes' algorithm",
+          "expected": "brandes",
+          "critical": true
+        },
+        "weighted": {
+          "expected": true,
+          "critical": true
+        },
+        "normalized": {
+          "rule": "Must normalize to 0-1 range",
+          "expected": true,
+          "critical": true
+        }
+      },
+      "modularity": {
+        "formula": {
+          "rule": "Must use Newman-Girvan weighted formula",
+          "expected": "newman_girvan_weighted",
+          "critical": true
+        },
+        "strong_threshold": {
+          "rule": "Q > 0.4 indicates strong community structure",
+          "expected": 0.4,
+          "critical": true
+        },
+        "very_strong_threshold": {
+          "expected": 0.7,
+          "critical": false
         }
       }
-    }
-  },
-  
-  "visualization_validation": {
-    "node_sizing": {
-      "type": "linear",
-      "formula": "5 + (bc_normalized * 35)",
-      "min_pixels": 5,
-      "max_pixels": 40,
-      "ratio": "8:1",
-      "validation": "Size must be LINEAR (not logarithmic), verify 8:1 ratio"
     },
-    "node_labels": {
-      "display_threshold_pixels": 20,
-      "percentage_shown": 30,
-      "validation": "Only show labels for nodes > 20 pixels (top ~30%)"
+    "visualization": {
+      "node_sizing": {
+        "rule": "LINEAR scaling (NOT logarithmic)",
+        "type": "linear",
+        "formula": "5 + (bc_normalized * 35)",
+        "min_pixels": 5,
+        "max_pixels": 40,
+        "ratio": "8:1",
+        "critical": true
+      },
+      "node_labels": {
+        "rule": "Show labels only for nodes > 20 pixels (top ~30%)",
+        "threshold_pixels": 20,
+        "percentage_shown": 30,
+        "critical": true
+      },
+      "edge_thickness": {
+        "formula": "log(weight + 1)",
+        "critical": false
+      }
     },
-    "edge_thickness": {
-      "formula": "log(weight + 1)",
-      "validation": "Verify logarithmic thickness calculation"
-    }
-  },
-  
-  "gaps_validation": {
-    "thresholds": {
+    "gaps": {
       "min_community_size": {
-        "value": 3,
-        "validation": "Communities must have at least 3 nodes"
+        "rule": "Communities must have at least 3 nodes",
+        "expected": 3,
+        "critical": true
       },
       "max_path_length": {
-        "value": 6,
-        "validation": "Maximum path length must be 6 hops"
+        "rule": "Gaps can be 2-6 hops apart",
+        "min": 2,
+        "max": 6,
+        "critical": true
       },
       "density_threshold": {
-        "value": 0.1,
-        "validation": "Density must be less than 0.1 (10%)"
+        "rule": "Gap must have < 10% possible connections",
+        "expected": 0.1,
+        "critical": true
       },
       "max_size_ratio": {
-        "value": 10,
-        "validation": "Size ratio must not exceed 10:1"
+        "rule": "Community sizes must not differ by more than 10:1",
+        "expected": 10,
+        "critical": true
       },
       "min_gap_score": {
-        "value": 0.4,
-        "validation": "Gap score must be at least 0.4"
+        "rule": "Gap score must be > 0.4 to be valid",
+        "expected": 0.4,
+        "critical": true
       },
       "max_gaps_returned": {
-        "value": 3,
-        "validation": "Return maximum 3 gaps"
+        "rule": "Return maximum 3 gaps",
+        "expected": 3,
+        "critical": true
+      },
+      "filtering_stages": {
+        "rule": "Must follow all 5 filtering stages in order",
+        "stages": [
+          "size_filters",
+          "distance_filters",
+          "density_filters",
+          "gap_score_calculation",
+          "semantic_validation"
+        ],
+        "critical": true
       }
     },
-    "filtering_stages": {
-      "count": 5,
-      "stages": [
-        "size_filters",
-        "distance_filters",
-        "density_filters",
-        "gap_score_calculation",
-        "semantic_validation"
-      ],
-      "validation": "All 5 stages must be executed in order"
-    }
-  },
-  
-  "cognitive_validation": {
-    "biased_uniform": {
-      "modularity_max": 0.4,
-      "entropy_max": 0.5,
-      "explore_ratio": 80,
-      "validation": "Verify thresholds for biased/uniform state"
-    },
-    "focused_regular": {
-      "modularity_max": 0.4,
-      "density_min": 0.7,
-      "explore_ratio": 30,
-      "validation": "Verify thresholds for focused/regular state"
-    },
-    "diversified_fractal": {
-      "modularity_min": 0.4,
-      "modularity_max": 0.7,
-      "entropy_min": 0.4,
-      "entropy_max": 0.7,
-      "explore_ratio": 50,
-      "optimal": true,
-      "validation": "Verify thresholds for optimal diversified/fractal state"
-    },
-    "dispersed_complex": {
-      "modularity_min": 0.7,
-      "entropy_min": 0.7,
-      "explore_ratio": 20,
-      "validation": "Verify thresholds for dispersed/complex state"
-    },
-    "immunity": {
-      "formula": "modularity * entropy",
-      "thresholds": {
-        "high": 0.28,
-        "medium": 0.16
+    "cognitive": {
+      "biased_uniform": {
+        "modularity_max": 0.4,
+        "entropy_max": 0.5,
+        "explore_ratio": 80
       },
-      "validation": "Verify immunity calculation and thresholds"
-    }
-  },
-  
-  "graphrag_validation": {
-    "subgraph_extraction": {
-      "hops": 2,
-      "method": "neighborhood",
-      "validation": "Must extract 2-hop neighborhood from overlapping nodes"
+      "focused_regular": {
+        "modularity_max": 0.4,
+        "density_min": 0.7,
+        "explore_ratio": 30
+      },
+      "diversified_fractal": {
+        "modularity_min": 0.4,
+        "modularity_max": 0.7,
+        "entropy_min": 0.4,
+        "entropy_max": 0.7,
+        "explore_ratio": 50,
+        "optimal": true,
+        "critical": true
+      },
+      "dispersed_complex": {
+        "modularity_min": 0.7,
+        "entropy_min": 0.7,
+        "explore_ratio": 20
+      },
+      "immunity_formula": {
+        "rule": "immunity = modularity × entropy",
+        "formula": "modularity * entropy",
+        "high_threshold": 0.28,
+        "medium_threshold": 0.16,
+        "critical": true
+      }
     },
-    "context": {
-      "top_concepts_count": 10,
-      "top_relations_count": 15,
-      "top_gaps_count": 5,
-      "validation": "Verify correct counts in context"
-    }
-  },
-  
-  "performance_validation": {
-    "targets": {
+    "graphrag": {
+      "subgraph_extraction": {
+        "hops": {
+          "rule": "Extract 2-hop neighborhood",
+          "expected": 2,
+          "critical": true
+        },
+        "method": {
+          "expected": "neighborhood",
+          "critical": true
+        }
+      },
+      "context_components": {
+        "top_concepts_count": 10,
+        "top_relations_count": 15,
+        "top_gaps_count": 5,
+        "critical": true
+      }
+    },
+    "performance": {
       "text_processing_500w": {
+        "rule": "Must process 500 words in < 5 seconds",
         "max_seconds": 5,
-        "validation": "500 words must process in < 5 seconds"
+        "critical": false
       },
       "graph_construction_500n": {
+        "rule": "Must construct graph of 500 nodes in < 10 seconds",
         "max_seconds": 10,
-        "validation": "500 nodes must construct in < 10 seconds"
+        "critical": false
       },
       "louvain_1000n": {
+        "rule": "Louvain on 1000 nodes in < 2 seconds",
         "max_seconds": 2,
-        "validation": "1000 nodes Louvain must complete in < 2 seconds"
+        "critical": false
       },
       "forceatlas2_1000n": {
+        "rule": "ForceAtlas2 on 1000 nodes in < 30 seconds",
         "max_seconds": 30,
-        "validation": "1000 nodes ForceAtlas2 must complete in < 30 seconds"
+        "critical": false
       },
       "betweenness_500n": {
+        "rule": "Betweenness on 500 nodes in < 5 seconds",
         "max_seconds": 5,
-        "validation": "500 nodes betweenness must complete in < 5 seconds"
+        "critical": false
       },
       "graphrag_query": {
+        "rule": "GraphRAG query response in < 3 seconds",
         "max_seconds": 3,
-        "validation": "GraphRAG query must complete in < 3 seconds"
+        "critical": false
       }
     }
   },
-  
-  "database_validation": {
-    "required_tables": [
-      "users",
-      "contexts",
-      "nodes",
-      "edges",
-      "statements",
-      "graph_metrics"
-    ],
-    "required_indexes": [
-      "idx_nodes_properties_gin",
-      "idx_edges_composite",
-      "idx_nodes_node_id",
-      "idx_edges_weight"
-    ],
-    "nodes_table": {
-      "required_columns": ["id", "node_id", "label", "type", "properties", "context_id"],
-      "properties_type": "JSONB",
-      "validation": "Verify GIN index on properties column"
+  "test_requirements": {
+    "unit_tests": {
+      "coverage_minimum": 80,
+      "required_modules": [
+        "nlp.text_processor",
+        "nlp.ngram_generator",
+        "graph.graph_builder",
+        "graph.edge_calculator",
+        "algorithms.louvain",
+        "algorithms.betweenness",
+        "gaps.gap_detector",
+        "graphrag.query_processor"
+      ]
     },
-    "edges_table": {
-      "required_columns": ["id", "source_node_id", "target_node_id", "relationship_type", "weight"],
-      "weight_type": "INTEGER",
-      "validation": "Verify composite index on (source_node_id, target_node_id)"
-    }
-  },
-  
-  "phase_completion_rules": {
-    "rule": "Phase cannot be marked complete unless ALL conditions met",
-    "conditions": [
-      "All deliverables checked off",
-      "All tests passing (100%)",
-      "Spec validator shows 100% compliance",
-      "Code committed to GitHub",
-      "PROGRESS.md updated",
-      "Documentation complete"
-    ]
-  },
-  
-  "critical_rules": {
-    "no_approximations": {
-      "rule": "NO approximations or deviations from specifications allowed",
-      "enforcement": "strict",
-      "validation": "All parameters must match specs exactly"
+    "integration_tests": {
+      "required_flows": [
+        "text_to_graph_pipeline",
+        "graph_to_visualization",
+        "graphrag_query_flow"
+      ]
     },
-    "exact_specifications": {
-      "rule": "Follow research specifications EXACTLY",
-      "enforcement": "mandatory",
-      "validation": "Cross-reference all implementations with research docs"
+    "specification_tests": {
+      "required_tests": [
+        "test_ngram_weights",
+        "test_node_sizing",
+        "test_gap_thresholds",
+        "test_edge_weight_accumulation",
+        "test_cognitive_state_classification"
+      ]
     }
   }
 }
