@@ -1,43 +1,89 @@
 # n8n Workflows for Synthesis
 
-This directory contains n8n workflow templates for Synthesis automation and AI integration.
+Automation workflows for graph processing and AI integration.
 
 ## Workflows
 
 ### 1. graphrag-query.json
-GraphRAG query processing workflow with Claude AI integration.
-- Receives query via webhook
-- Processes query through Synthesis API
-- Sends context to Claude for response generation
-- Returns AI-generated answer
+**Purpose:** Process GraphRAG queries with AI insights
+
+**Flow:**
+1. Receive query via webhook
+2. Extract relevant subgraph from database
+3. Build context (top concepts, relations, gaps)
+4. Send to Claude API with context
+5. Return AI-generated insights
+
+**Trigger:** POST to /webhook/graphrag-query
+
+**Payload:**
+```json
+{
+  "query": "How are AI tools and customer feedback related?",
+  "context_id": 1
+}
+```
 
 ### 2. gap-bridging.json
-Structural gap detection and bridging idea generation.
-- Receives graph context via webhook
-- Detects structural gaps
-- Generates bridging ideas using Claude AI
-- Returns suggestions
+**Purpose:** Detect and provide insights on structural gaps
+
+**Flow:**
+1. Load graph from database
+2. Run gap detection algorithm
+3. Generate AI insights on bridging gaps
+4. Return recommendations
+
+**Trigger:** POST to /webhook/gap-bridging
 
 ### 3. csv-import.json
-Batch text processing from CSV files.
-- Receives CSV file via webhook
-- Parses CSV data
-- Processes text through Synthesis
-- Returns processed graph data
+**Purpose:** Import and process CSV data
+
+**Flow:**
+1. Receive CSV file
+2. Parse rows
+3. Process each row through NLP pipeline
+4. Build graph
+5. Save to database
+
+**Trigger:** POST to /webhook/csv-import
 
 ## Setup
 
-1. Import workflows into n8n
-2. Configure Claude API credentials
-3. Set Synthesis API endpoint
-4. Activate workflows
+1. Install n8n:
+```bash
+npm install -g n8n
+```
 
-## Configuration
+2. Start n8n:
+```bash
+n8n start
+```
 
-- Synthesis API: `http://localhost:8000`
-- Claude API: `https://api.anthropic.com/v1/messages`
-- Model: `claude-sonnet-4-20250514`
+3. Import workflows:
+- Open n8n web interface (http://localhost:5678)
+- Click "Import from File"
+- Select workflow JSON files
 
-## Usage
+4. Configure credentials:
+- Add PostgreSQL credentials
+- Add Claude API key
+- Configure webhook URLs
 
-See individual workflow files for webhook URLs and request formats.
+## Testing
+
+Test GraphRAG query:
+```bash
+curl -X POST http://localhost:5678/webhook/graphrag-query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "What are the main themes in this discourse?",
+    "context_id": 1
+  }'
+```
+
+## Notes
+
+- Workflows use Super Code nodes for custom JavaScript
+- PostgreSQL nodes connect to Synthesis database
+- AI Agent nodes use Claude API (via n8n credentials)
+- All workflows follow exact specifications from research

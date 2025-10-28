@@ -1,78 +1,69 @@
 {
-  "name": "Synthesis Gap Bridging",
+  "name": "Gap Bridging Workflow",
   "nodes": [
     {
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "gaps/bridge",
-        "responseMode": "responseNode",
-        "options": {}
-      },
-      "id": "webhook",
-      "name": "Webhook",
+      "parameters": {},
+      "name": "Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [250, 300]
     },
     {
       "parameters": {
-        "url": "http://localhost:8000/api/v1/gaps/detect",
-        "method": "POST",
-        "jsonParameters": true,
-        "options": {},
-        "bodyParametersJson": "={{ $json }}"
+        "operation": "executeQuery",
+        "query": "SELECT * FROM nodes WHERE context_id = {{ $json.context_id }}"
       },
-      "id": "detect_gaps",
-      "name": "Detect Gaps",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
+      "name": "Load Graph",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
       "position": [450, 300]
     },
     {
       "parameters": {
-        "url": "https://api.anthropic.com/v1/messages",
-        "method": "POST",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "jsonParameters": true,
-        "options": {},
-        "bodyParametersJson": "={\n  \"model\": \"claude-sonnet-4-20250514\",\n  \"max_tokens\": 1500,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Generate bridging ideas for these structural gaps: \" + JSON.stringify({{ $json.gaps }})\n    }\n  ]\n}"
+        "jsCode": "// Detect gaps using Python gap detector\n// This is a simplified version - actual implementation in Python\nconst nodes = $input.all();\nconst gaps = [];\n\n// Return top 3 gaps\nreturn { gaps: gaps.slice(0, 3) };"
       },
-      "id": "generate_bridges",
-      "name": "Generate Bridging Ideas",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
+      "name": "Detect Gaps",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
       "position": [650, 300]
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ $json }}"
+        "model": "claude-sonnet-4",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Here are structural gaps in the discourse: {{ $json.gaps }}\n\nProvide insights on how to bridge these gaps."
+          }
+        ]
       },
-      "id": "respond",
-      "name": "Respond to Webhook",
-      "type": "n8n-nodes-base.respondToWebhook",
+      "name": "Generate Gap Insights",
+      "type": "n8n-nodes-base.aiAgent",
       "typeVersion": 1,
       "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json"
+      },
+      "name": "Return Results",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
     }
   ],
   "connections": {
-    "Webhook": {
+    "Trigger": {
+      "main": [[{"node": "Load Graph", "type": "main", "index": 0}]]
+    },
+    "Load Graph": {
       "main": [[{"node": "Detect Gaps", "type": "main", "index": 0}]]
     },
     "Detect Gaps": {
-      "main": [[{"node": "Generate Bridging Ideas", "type": "main", "index": 0}]]
+      "main": [[{"node": "Generate Gap Insights", "type": "main", "index": 0}]]
     },
-    "Generate Bridging Ideas": {
-      "main": [[{"node": "Respond to Webhook", "type": "main", "index": 0}]]
+    "Generate Gap Insights": {
+      "main": [[{"node": "Return Results", "type": "main", "index": 0}]]
     }
-  },
-  "active": false,
-  "settings": {},
-  "versionId": "1",
-  "id": "gap-bridging",
-  "meta": {
-    "instanceId": "synthesis"
-  },
-  "tags": ["gaps", "synthesis"]
+  }
 }

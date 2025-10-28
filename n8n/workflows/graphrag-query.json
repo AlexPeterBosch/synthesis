@@ -1,78 +1,83 @@
 {
-  "name": "Synthesis GraphRAG Query",
+  "name": "GraphRAG Query Workflow",
   "nodes": [
     {
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "graphrag/query",
-        "responseMode": "responseNode",
-        "options": {}
-      },
-      "id": "webhook",
+      "parameters": {},
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [250, 300]
+      "position": [250, 300],
+      "webhookId": "graphrag-query"
     },
     {
       "parameters": {
-        "url": "http://localhost:8000/api/v1/graphrag/process",
-        "method": "POST",
-        "jsonParameters": true,
-        "options": {},
-        "bodyParametersJson": "={{ $json }}"
+        "jsCode": "// Extract query from webhook\nconst query = $input.item.json.query;\nconst context_id = $input.item.json.context_id;\n\nreturn {\n  query: query,\n  context_id: context_id\n};"
       },
-      "id": "http_request",
-      "name": "Process Query",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
+      "name": "Extract Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
       "position": [450, 300]
     },
     {
       "parameters": {
-        "url": "https://api.anthropic.com/v1/messages",
-        "method": "POST",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "jsonParameters": true,
-        "options": {},
-        "bodyParametersJson": "={\n  \"model\": \"claude-sonnet-4-20250514\",\n  \"max_tokens\": 2000,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": {{ $json.context }} + \"\\n\\nQuery: \" + {{ $json.query }}\n    }\n  ]\n}"
+        "operation": "executeQuery",
+        "query": "SELECT * FROM nodes WHERE context_id = {{ $json.context_id }}"
       },
-      "id": "claude_api",
-      "name": "Claude AI",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
+      "name": "Get Graph Nodes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
       "position": [650, 300]
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ $json.content[0].text }}"
+        "jsCode": "// Build context for AI\nconst nodes = $input.all();\n\n// Extract top concepts\nconst topConcepts = nodes\n  .sort((a, b) => b.json.properties.betweenness_centrality - a.json.properties.betweenness_centrality)\n  .slice(0, 10);\n\nconst context = {\n  query: $('Extract Query').item.json.query,\n  top_concepts: topConcepts.map(n => n.json.label),\n  graph_size: nodes.length\n};\n\nreturn { context: JSON.stringify(context) };"
       },
-      "id": "respond",
-      "name": "Respond to Webhook",
-      "type": "n8n-nodes-base.respondToWebhook",
+      "name": "Build Context",
+      "type": "n8n-nodes-base.code",
       "typeVersion": 1,
       "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "model": "claude-sonnet-4",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Based on this graph context: {{ $json.context }}\n\nAnswer this question: {{ $('Extract Query').item.json.query }}"
+          }
+        ]
+      },
+      "name": "AI Agent (Claude)",
+      "type": "n8n-nodes-base.aiAgent",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { answer: $json.output, query: $('Extract Query').item.json.query } }}"
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [[{"node": "Process Query", "type": "main", "index": 0}]]
+      "main": [[{"node": "Extract Query", "type": "main", "index": 0}]]
     },
-    "Process Query": {
-      "main": [[{"node": "Claude AI", "type": "main", "index": 0}]]
+    "Extract Query": {
+      "main": [[{"node": "Get Graph Nodes", "type": "main", "index": 0}]]
     },
-    "Claude AI": {
-      "main": [[{"node": "Respond to Webhook", "type": "main", "index": 0}]]
+    "Get Graph Nodes": {
+      "main": [[{"node": "Build Context", "type": "main", "index": 0}]]
+    },
+    "Build Context": {
+      "main": [[{"node": "AI Agent (Claude)", "type": "main", "index": 0}]]
+    },
+    "AI Agent (Claude)": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
     }
-  },
-  "active": false,
-  "settings": {},
-  "versionId": "1",
-  "id": "graphrag-query",
-  "meta": {
-    "instanceId": "synthesis"
-  },
-  "tags": ["graphrag", "synthesis"]
+  }
 }
