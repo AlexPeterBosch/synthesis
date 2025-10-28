@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "synthesis"
-version = "1.0.0"
+version = "0.1.0"
 description = "Text-to-knowledge-graph system with AI insights, structural gap detection, and cognitive analysis"
-authors = ["Synthesis Team"]
+authors = ["Alex Peter Bosch <alex.peter.bosch@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 
@@ -21,7 +21,7 @@ pydantic = "^2.5.2"
 python-multipart = "^0.0.6"
 requests = "^2.31.0"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 pytest = "^7.4.3"
 pytest-asyncio = "^0.21.1"
 black = "^23.12.0"
@@ -29,7 +29,7 @@ flake8 = "^6.1.0"
 mypy = "^1.7.1"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.black]
@@ -44,7 +44,6 @@ disallow_untyped_defs = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-asyncio_mode = "auto"
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
