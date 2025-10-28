@@ -1,1 +1,1 @@
-"""Tests for algorithms module."""
+"""Algorithms module tests"""

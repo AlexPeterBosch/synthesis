@@ -1,52 +1,83 @@
-"""Louvain community detection algorithm."""
+"""Louvain Community Detection
+
+Exact specifications:
+- Resolution: γ = 1.0 (default)
+- Weighted: True (uses edge weights)
+- Stopping criteria: ΔQ < 0.0001
+- Random seed: Fixed for reproducibility
+"""
 
 import networkx as nx
-import community as community_louvain
-from typing import Dict
+import community as community_louvain  # python-louvain
+from typing import Dict, Any
 
 
 class LouvainCommunityDetection:
-    """Detect communities using Louvain algorithm with exact specifications."""
+    """Louvain algorithm with exact InfraNodus specifications."""
     
-    def __init__(self, resolution: float = 1.0):
-        """Initialize Louvain algorithm.
+    def __init__(self, resolution: float = 1.0, random_state: int = 42):
+        """Initialize Louvain community detection.
         
         Args:
-            resolution: Modularity resolution parameter (must be 1.0 per specs)
+            resolution: Resolution parameter (default: 1.0)
+            random_state: Random seed for reproducibility
         """
         self.resolution = resolution
+        self.random_state = random_state
     
     def detect_communities(self, graph: nx.Graph) -> Dict[str, int]:
-        """Detect communities in graph.
-        
-        Specifications:
-        - Resolution γ = 1.0 (default)
-        - Weighted = True (use edge weights)
-        - Stopping criteria: ΔQ < 0.0001
+        """Detect communities using Louvain algorithm.
         
         Args:
             graph: NetworkX graph with weighted edges
-            
+        
         Returns:
-            Dictionary mapping node names to community IDs
+            Dictionary mapping node to community ID
         """
-        # Use weighted modularity optimization
+        # Use python-louvain library
+        # Weight attribute should be 'weight' (default)
         partition = community_louvain.best_partition(
             graph,
             weight='weight',
             resolution=self.resolution,
-            random_state=None  # Deterministic
+            random_state=self.random_state
         )
         
         return partition
     
-    def get_community_count(self, partition: Dict[str, int]) -> int:
-        """Get number of communities detected.
+    def get_modularity(self, graph: nx.Graph, partition: Dict[str, int]) -> float:
+        """Calculate modularity of partition.
         
         Args:
-            partition: Community partition dictionary
-            
+            graph: NetworkX graph
+            partition: Node to community mapping
+        
         Returns:
-            Number of communities
+            Modularity value (higher = better community structure)
         """
-        return len(set(partition.values()))
+        modularity = community_louvain.modularity(
+            partition,
+            graph,
+            weight='weight'
+        )
+        return modularity
+    
+    def get_community_stats(self, partition: Dict[str, int]) -> Dict[str, Any]:
+        """Get statistics about detected communities.
+        
+        Args:
+            partition: Node to community mapping
+        
+        Returns:
+            Dictionary with community statistics
+        """
+        from collections import Counter
+        
+        community_sizes = Counter(partition.values())
+        
+        return {
+            "num_communities": len(community_sizes),
+            "largest_community": max(community_sizes.values()),
+            "smallest_community": min(community_sizes.values()),
+            "avg_community_size": sum(community_sizes.values()) / len(community_sizes)
+        }
