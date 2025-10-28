@@ -1,1 +1,1 @@
-"""Tests for gaps module."""
+"""Gaps module tests"""

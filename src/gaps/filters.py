@@ -1,53 +1,92 @@
-"""Filtering utilities for gap detection."""
+"""Gap Detection Filters
 
-from typing import List, Dict
+Five-stage filtering system:
+1. Size filters
+2. Distance filters
+3. Density filters
+4. Gap score calculation
+5. Semantic validation
+"""
+
+from typing import Set
 
 
 class GapFilters:
-    """Filtering utilities for five-stage gap detection process."""
+    """Filters for gap detection pipeline."""
     
     @staticmethod
-    def size_filter(community_sizes: Dict[int, int], 
+    def size_filter(comm_a: Set, comm_b: Set, 
                    min_size: int = 3, 
-                   max_ratio: float = 10.0) -> List[int]:
-        """Stage 1: Filter communities by size.
+                   max_ratio: int = 10) -> bool:
+        """Filter by community size.
         
         Args:
-            community_sizes: Dictionary mapping community IDs to sizes
+            comm_a: First community
+            comm_b: Second community
             min_size: Minimum community size
-            max_ratio: Maximum size ratio between communities
-            
+            max_ratio: Maximum size ratio
+        
         Returns:
-            List of valid community IDs
+            True if passes filter
         """
-        return [
-            comm_id for comm_id, size in community_sizes.items()
-            if size >= min_size
-        ]
+        size_a = len(comm_a)
+        size_b = len(comm_b)
+        
+        # Check minimum size
+        if size_a < min_size or size_b < min_size:
+            return False
+        
+        # Check size ratio
+        ratio = max(size_a, size_b) / min(size_a, size_b)
+        if ratio > max_ratio:
+            return False
+        
+        return True
     
     @staticmethod
-    def distance_filter(distance: int, min_hops: int = 2, max_hops: int = 6) -> bool:
-        """Stage 2: Filter by distance.
+    def distance_filter(path_length: float, 
+                       min_hops: int = 2, 
+                       max_hops: int = 6) -> bool:
+        """Filter by path length.
         
         Args:
-            distance: Shortest path distance
-            min_hops: Minimum hop count
-            max_hops: Maximum hop count
-            
+            path_length: Shortest path between communities
+            min_hops: Minimum hops (default: 2)
+            max_hops: Maximum hops (default: 6)
+        
         Returns:
-            True if distance is valid
+            True if passes filter
         """
-        return min_hops <= distance <= max_hops
+        if path_length < 0:  # No path
+            return False
+        
+        return min_hops <= path_length <= max_hops
     
     @staticmethod
-    def density_filter(density: float, max_density: float = 0.1) -> bool:
-        """Stage 3: Filter by density.
+    def density_filter(density: float, threshold: float = 0.1) -> bool:
+        """Filter by density.
         
         Args:
             density: Connection density between communities
-            max_density: Maximum allowed density
-            
+            threshold: Maximum allowed density (default: 0.1 = 10%)
+        
         Returns:
-            True if density is below threshold
+            True if passes filter (density below threshold)
         """
-        return density < max_density
+        return density < threshold
+    
+    @staticmethod
+    def semantic_validation(comm_a_labels: list, comm_b_labels: list) -> bool:
+        """Validate semantic relevance of gap.
+        
+        TODO: Implement semantic similarity checking
+        
+        Args:
+            comm_a_labels: Node labels from community A
+            comm_b_labels: Node labels from community B
+        
+        Returns:
+            True if semantically relevant
+        """
+        # Placeholder: always pass for now
+        return True

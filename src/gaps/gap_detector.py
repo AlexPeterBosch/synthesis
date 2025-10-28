@@ -1,147 +1,151 @@
-"""Detect structural gaps in knowledge graphs."""
+"""Gap Detection Algorithm
+
+Five-stage filtering process with exact thresholds:
+- MIN_COMMUNITY_SIZE: 3 nodes
+- MAX_PATH_LENGTH: 6 hops
+- DENSITY_THRESHOLD: 0.1 (10%)
+- MAX_SIZE_RATIO: 10:1
+- MIN_GAP_SCORE: 0.4
+- MAX_GAPS_RETURNED: 3
+"""
 
 import networkx as nx
-from typing import Dict, List, Tuple
+from typing import List, Dict, Tuple, Any
+from .filters import GapFilters
 
 
 class GapDetector:
-    """Detect structural gaps between communities following exact specifications."""
+    """Detect structural gaps between communities."""
     
-    def __init__(self):
-        """Initialize gap detector with exact threshold parameters."""
-        # Exact thresholds from specifications
-        self.min_community_size = 3
-        self.max_path_length = 6
-        self.density_threshold = 0.1  # 10%
-        self.max_size_ratio = 10
-        self.min_gap_score = 0.4
-        self.max_gaps_returned = 3
+    # Exact thresholds from specifications
+    MIN_COMMUNITY_SIZE = 3
+    MAX_PATH_LENGTH = 6
+    DENSITY_THRESHOLD = 0.1
+    MAX_SIZE_RATIO = 10
+    MIN_GAP_SCORE = 0.4
+    MAX_GAPS_RETURNED = 3
     
-    def detect_gaps(self, graph: nx.Graph, communities: Dict[str, int]) -> List[Dict]:
-        """Detect structural gaps using five-stage filtering.
-        
-        Specifications:
-        - Stage 1: Size filters (min 3 nodes, max ratio 10:1)
-        - Stage 2: Distance filters (2-6 hops)
-        - Stage 3: Density filters (<10% connections)
-        - Stage 4: Gap score calculation (>0.4 threshold)
-        - Stage 5: Semantic validation
+    def __init__(self, graph: nx.Graph, communities: Dict[str, int]):
+        """Initialize gap detector.
         
         Args:
             graph: NetworkX graph
-            communities: Dictionary mapping nodes to community IDs
-            
-        Returns:
-            List of top 3 gaps with highest scores
+            communities: Node to community ID mapping
         """
+        self.graph = graph
+        self.communities = communities
+        self.filters = GapFilters()
+    
+    def detect_gaps(self) -> List[Dict[str, Any]]:
+        """Detect gaps using five-stage filtering process.
+        
+        Returns:
+            List of gap dictionaries (max 3), sorted by gap score
+        """
+        # Get community pairs
+        community_sets = self._get_community_sets()
+        community_pairs = self._get_community_pairs(community_sets)
+        
         gaps = []
         
-        # Get unique community IDs
-        community_ids = set(communities.values())
+        for comm_a_id, comm_b_id in community_pairs:
+            comm_a = community_sets[comm_a_id]
+            comm_b = community_sets[comm_b_id]
+            
+            # Stage 1: Size filters
+            if not self.filters.size_filter(comm_a, comm_b, 
+                                            self.MIN_COMMUNITY_SIZE, 
+                                            self.MAX_SIZE_RATIO):
+                continue
+            
+            # Stage 2: Distance filters
+            path_length = self._get_shortest_path_length(comm_a, comm_b)
+            if not self.filters.distance_filter(path_length, 2, self.MAX_PATH_LENGTH):
+                continue
+            
+            # Stage 3: Density filter
+            density = self._calculate_density(comm_a, comm_b)
+            if not self.filters.density_filter(density, self.DENSITY_THRESHOLD):
+                continue
+            
+            # Stage 4: Gap score calculation
+            gap_score = self._calculate_gap_score(comm_a, comm_b, path_length, density)
+            if gap_score < self.MIN_GAP_SCORE:
+                continue
+            
+            # Stage 5: Semantic validation (simplified for now)
+            # TODO: Implement semantic validation
+            
+            gaps.append({
+                "community_a_id": comm_a_id,
+                "community_b_id": comm_b_id,
+                "community_a_nodes": list(comm_a),
+                "community_b_nodes": list(comm_b),
+                "gap_score": gap_score,
+                "path_length": path_length,
+                "density": density,
+                "size_a": len(comm_a),
+                "size_b": len(comm_b)
+            })
         
-        # Get community sizes
-        community_sizes = {}
-        for comm_id in community_ids:
-            nodes = [n for n, c in communities.items() if c == comm_id]
-            community_sizes[comm_id] = len(nodes)
-        
-        # Stage 1: Size filters
-        valid_communities = [
-            comm_id for comm_id, size in community_sizes.items()
-            if size >= self.min_community_size
-        ]
-        
-        # Check all pairs of valid communities
-        for i, comm1 in enumerate(valid_communities):
-            for comm2 in valid_communities[i+1:]:
-                # Check size ratio
-                size_ratio = max(community_sizes[comm1], community_sizes[comm2]) / \
-                           min(community_sizes[comm1], community_sizes[comm2])
-                
-                if size_ratio > self.max_size_ratio:
-                    continue
-                
-                # Get nodes in each community
-                comm1_nodes = [n for n, c in communities.items() if c == comm1]
-                comm2_nodes = [n for n, c in communities.items() if c == comm2]
-                
-                # Stage 2 & 3: Calculate distance and density
-                gap_info = self._calculate_gap_metrics(
-                    graph, comm1_nodes, comm2_nodes
-                )
-                
-                if gap_info is None:
-                    continue
-                
-                # Stage 4: Calculate gap score
-                gap_score = self._calculate_gap_score(gap_info)
-                
-                if gap_score >= self.min_gap_score:
-                    gaps.append({
-                        "community_1": comm1,
-                        "community_2": comm2,
-                        "gap_score": gap_score,
-                        "distance": gap_info["distance"],
-                        "density": gap_info["density"],
-                        "nodes_1": comm1_nodes,
-                        "nodes_2": comm2_nodes
-                    })
-        
-        # Sort by gap score and return top 3
-        gaps.sort(key=lambda x: x["gap_score"], reverse=True)
-        return gaps[:self.max_gaps_returned]
+        # Sort by gap score (descending) and return top 3
+        gaps.sort(key=lambda x: x['gap_score'], reverse=True)
+        return gaps[:self.MAX_GAPS_RETURNED]
     
-    def _calculate_gap_metrics(self, graph: nx.Graph, nodes1: List[str], 
-                               nodes2: List[str]) -> Dict:
-        """Calculate distance and density between two communities."""
-        # Calculate shortest path distances
-        min_distance = float('inf')
+    def _get_community_sets(self) -> Dict[int, set]:
+        """Convert communities dict to sets."""
+        community_sets = {}
+        for node, comm_id in self.communities.items():
+            if comm_id not in community_sets:
+                community_sets[comm_id] = set()
+            community_sets[comm_id].add(node)
+        return community_sets
+    
+    def _get_community_pairs(self, community_sets: Dict[int, set]) -> List[Tuple[int, int]]:
+        """Get all pairs of communities."""
+        comm_ids = list(community_sets.keys())
+        pairs = []
+        for i in range(len(comm_ids)):
+            for j in range(i + 1, len(comm_ids)):
+                pairs.append((comm_ids[i], comm_ids[j]))
+        return pairs
+    
+    def _get_shortest_path_length(self, comm_a: set, comm_b: set) -> float:
+        """Get shortest path between two communities."""
+        min_path = float('inf')
         
-        for n1 in nodes1:
-            for n2 in nodes2:
+        for node_a in comm_a:
+            for node_b in comm_b:
                 try:
-                    distance = nx.shortest_path_length(graph, n1, n2)
-                    min_distance = min(min_distance, distance)
+                    path_length = nx.shortest_path_length(self.graph, node_a, node_b)
+                    min_path = min(min_path, path_length)
                 except nx.NetworkXNoPath:
                     continue
         
-        # Check distance threshold (2-6 hops)
-        if min_distance < 2 or min_distance > self.max_path_length:
-            return None
-        
-        # Calculate density (connections between communities)
-        connections = 0
-        possible_connections = len(nodes1) * len(nodes2)
-        
-        for n1 in nodes1:
-            for n2 in nodes2:
-                if graph.has_edge(n1, n2):
-                    connections += 1
-        
-        density = connections / possible_connections if possible_connections > 0 else 0
-        
-        # Check density threshold
-        if density >= self.density_threshold:
-            return None
-        
-        return {
-            "distance": min_distance,
-            "density": density,
-            "connections": connections
-        }
+        return min_path if min_path != float('inf') else -1
     
-    def _calculate_gap_score(self, gap_info: Dict) -> float:
-        """Calculate gap score based on distance and density.
+    def _calculate_density(self, comm_a: set, comm_b: set) -> float:
+        """Calculate density of connections between communities."""
+        actual_edges = 0
+        possible_edges = len(comm_a) * len(comm_b)
         
-        Higher score = better gap candidate.
+        for node_a in comm_a:
+            for node_b in comm_b:
+                if self.graph.has_edge(node_a, node_b):
+                    actual_edges += 1
+        
+        return actual_edges / possible_edges if possible_edges > 0 else 0
+    
+    def _calculate_gap_score(self, comm_a: set, comm_b: set, 
+                            path_length: float, density: float) -> float:
+        """Calculate gap score.
+        
+        Formula: (1 - density) * (1/path_length) * community_similarity
         """
-        # Normalize distance (2-6 range to 0-1)
-        distance_score = (gap_info["distance"] - 2) / 4
+        if path_length <= 0:
+            return 0
         
-        # Invert density (lower density = higher score)
-        density_score = 1 - (gap_info["density"] / self.density_threshold)
-        
-        # Combined score (equal weighting)
-        gap_score = (distance_score + density_score) / 2
+        # Simplified gap score (can be enhanced with semantic similarity)
+        gap_score = (1 - density) * (1 / path_length)
         
         return gap_score
