@@ -1,1 +1,9 @@
-"""Pydantic models for API requests/responses."""
+"""API Data Models
+
+Pydantic models for request/response validation:
+- TextProcessRequest
+- GraphBuildRequest
+- QueryRequest
+- VisualizationResponse
+- etc.
+"""
