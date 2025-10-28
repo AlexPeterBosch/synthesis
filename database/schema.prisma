@@ -1,0 +1,119 @@
+// Synthesis Prisma Schema
+// PostgreSQL database schema with exact specifications
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                Int       @id @default(autoincrement())
+  username          String    @unique
+  email             String    @unique
+  apiKey            String?   @map("api_key")
+  subscriptionTier  String?   @map("subscription_tier")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  
+  nodes     Node[]
+  contexts  Context[]
+  statements Statement[]
+  
+  @@map("users")
+}
+
+model Context {
+  id          Int      @id @default(autoincrement())
+  contextName String   @unique @map("context_name")
+  userId      Int      @map("user_id")
+  visibility  String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  metadata    Json?
+  
+  user        User     @relation(fields: [userId], references: [id])
+  nodes       Node[]
+  statements  Statement[]
+  metrics     GraphMetric[]
+  
+  @@map("contexts")
+}
+
+model Node {
+  id         Int      @id @default(autoincrement())
+  nodeId     String   @unique @map("node_id")
+  label      String?
+  type       String
+  properties Json?
+  userId     Int?     @map("user_id")
+  contextId  Int?     @map("context_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  
+  user       User?    @relation(fields: [userId], references: [id])
+  context    Context? @relation(fields: [contextId], references: [id])
+  
+  outgoingEdges Edge[] @relation("SourceNode")
+  incomingEdges Edge[] @relation("TargetNode")
+  
+  @@index([nodeId])
+  @@index([type])
+  @@index([contextId])
+  @@map("nodes")
+}
+
+model Edge {
+  id               Int      @id @default(autoincrement())
+  edgeId           String   @unique @map("edge_id")
+  sourceNodeId     Int      @map("source_node_id")
+  targetNodeId     Int      @map("target_node_id")
+  relationshipType String   @map("relationship_type")
+  weight           Int      @default(1)
+  properties       Json?
+  createdAt        DateTime @default(now()) @map("created_at")
+  
+  sourceNode Node @relation("SourceNode", fields: [sourceNodeId], references: [id], onDelete: Cascade)
+  targetNode Node @relation("TargetNode", fields: [targetNodeId], references: [id], onDelete: Cascade)
+  
+  @@unique([sourceNodeId, targetNodeId, relationshipType])
+  @@index([sourceNodeId])
+  @@index([targetNodeId])
+  @@map("edges")
+}
+
+model Statement {
+  id          Int      @id @default(autoincrement())
+  statementId String   @unique @map("statement_id")
+  text        String
+  sentiment   String?
+  topics      String[]
+  contextId   Int?     @map("context_id")
+  userId      Int?     @map("user_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  context     Context? @relation(fields: [contextId], references: [id])
+  user        User?    @relation(fields: [userId], references: [id])
+  
+  @@index([contextId])
+  @@map("statements")
+}
+
+model GraphMetric {
+  id                Int      @id @default(autoincrement())
+  contextId         Int      @map("context_id")
+  modularity        Float?
+  influenceEntropy  Float?   @map("influence_entropy")
+  nodeCount         Int?     @map("node_count")
+  edgeCount         Int?     @map("edge_count")
+  communityCount    Int?     @map("community_count")
+  avgBetweenness    Float?   @map("avg_betweenness")
+  cognitiveState    String?  @map("cognitive_state")
+  calculatedAt      DateTime @default(now()) @map("calculated_at")
+  
+  context           Context  @relation(fields: [contextId], references: [id])
+  
+  @@index([contextId])
+  @@map("graph_metrics")
+}
