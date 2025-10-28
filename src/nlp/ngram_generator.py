@@ -1,64 +1,84 @@
-"""N-gram generation with exact two-pass algorithm
+"""N-gram generation using TWO-PASS algorithm."""
 
-Two-pass 4-gram window algorithm:
-- Pass 1: Bigrams (adjacent words) -> weight = 3
-- Pass 2: 4-gram window:
-  - Distance 1 (1 word apart) -> weight = 2
-  - Distance 2 (2 words apart) -> weight = 1
-
-CRITICAL: Paragraph breaks (\\n\\n) STOP scanning!
-"""
-
-from typing import List, Tuple
+from typing import List, Dict, Tuple
+from collections import defaultdict
 
 
 class NgramGenerator:
-    """Generate n-grams with exact weighted algorithm"""
+    """Generate n-grams using exact TWO-PASS algorithm from specifications."""
     
-    def generate(self, tokens: List[str]) -> List[Tuple[str, str, int]]:
-        """Generate n-grams with two-pass algorithm
+    def __init__(self):
+        """Initialize n-gram generator with exact parameters."""
+        # Pass 1: Bigram weights
+        self.bigram_weight = 3
+        
+        # Pass 2: 4-gram window weights
+        self.distance_weights = {
+            0: 3,  # Adjacent (handled by Pass 1)
+            1: 2,  # 1 word apart
+            2: 1   # 2 words apart
+        }
+        
+        self.window_size = 4
+    
+    def generate(self, lemmas: List[str]) -> Dict[Tuple[str, str], int]:
+        """Generate n-grams using TWO-PASS algorithm.
+        
+        PASS 1: Bigrams (adjacent words) with weight 3
+        PASS 2: 4-gram window with distance-based weights
         
         Args:
-            tokens: List of processed tokens from single paragraph
-        
+            lemmas: List of lemmatized words
+            
         Returns:
-            List of (source, target, weight) tuples
+            Dictionary mapping (word1, word2) tuples to weights
         """
-        ngrams = []
+        edges = defaultdict(int)
         
-        # PASS 1: Bigrams (adjacent words, weight=3)
-        for i in range(len(tokens) - 1):
-            ngrams.append((tokens[i], tokens[i+1], 3))
+        # PASS 1: Bigram scan
+        for i in range(len(lemmas) - 1):
+            word1 = lemmas[i]
+            word2 = lemmas[i + 1]
+            # Always store as sorted tuple for undirected graph
+            edge = tuple(sorted([word1, word2]))
+            edges[edge] += self.bigram_weight
         
-        # PASS 2: 4-gram window
-        for i in range(len(tokens) - 3):
-            window = tokens[i:i+4]
+        # PASS 2: 4-gram window scan
+        for i in range(len(lemmas) - self.window_size + 1):
+            window = lemmas[i:i + self.window_size]
             
-            # Distance 1 (1 word apart) -> weight = 2
-            ngrams.append((window[0], window[2], 2))
-            ngrams.append((window[1], window[3], 2))
-            
-            # Distance 2 (2 words apart) -> weight = 1
-            ngrams.append((window[0], window[3], 1))
+            # Generate all pairs in window with distance-based weights
+            for j in range(len(window)):
+                for k in range(j + 1, len(window)):
+                    distance = k - j - 1  # Distance between words
+                    
+                    if distance in self.distance_weights:
+                        word1 = window[j]
+                        word2 = window[k]
+                        edge = tuple(sorted([word1, word2]))
+                        
+                        # Skip if distance is 0 (already handled by Pass 1)
+                        if distance > 0:
+                            edges[edge] += self.distance_weights[distance]
         
-        return ngrams
+        return dict(edges)
     
-    def process_text(self, text: str, tokens_by_paragraph: List[List[str]]) -> List[Tuple[str, str, int]]:
-        """Process entire text respecting paragraph boundaries
+    def process_paragraphs(self, paragraphs: List[List[str]]) -> Dict[Tuple[str, str], int]:
+        """Process multiple paragraphs, resetting at paragraph breaks.
         
-        CRITICAL: Paragraphs separated by \\n\\n do NOT connect
+        CRITICAL: Paragraph breaks (\\n\\n) STOP scanning.
         
         Args:
-            text: Original text
-            tokens_by_paragraph: List of token lists, one per paragraph
-        
+            paragraphs: List of paragraph lemma lists
+            
         Returns:
-            Combined n-grams from all paragraphs
+            Combined edge dictionary
         """
-        all_ngrams = []
+        all_edges = defaultdict(int)
         
-        for paragraph_tokens in tokens_by_paragraph:
-            paragraph_ngrams = self.generate(paragraph_tokens)
-            all_ngrams.extend(paragraph_ngrams)
+        for paragraph_lemmas in paragraphs:
+            paragraph_edges = self.generate(paragraph_lemmas)
+            for edge, weight in paragraph_edges.items():
+                all_edges[edge] += weight
         
-        return all_ngrams
+        return dict(all_edges)

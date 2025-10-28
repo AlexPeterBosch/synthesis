@@ -1,55 +1,44 @@
-"""English stopwords list - exact specification from research
+"""Stopwords management and filtering."""
 
-180+ words based on Snowball stemmer with extensions.
-Applied BEFORE lemmatization (critical!).
-"""
+import json
+from pathlib import Path
+from typing import List, Set
 
-ENGLISH_STOPWORDS = [
-    # Articles
-    "a", "an", "the",
+
+class StopwordsFilter:
+    """Filter stopwords from text following exact specifications."""
     
-    # Pronouns
-    "i", "me", "my", "myself",
-    "we", "our", "ours", "ourselves",
-    "you", "your", "yours", "yourself", "yourselves",
-    "he", "him", "his", "himself",
-    "she", "her", "hers", "herself",
-    "it", "its", "itself",
-    "they", "them", "their", "theirs", "themselves",
+    def __init__(self, language: str = "en"):
+        """Initialize stopwords filter.
+        
+        Args:
+            language: Language code
+        """
+        self.language = language
+        self.stopwords = self._load_stopwords()
     
-    # Auxiliary verbs
-    "is", "are", "was", "were", "be", "been", "being",
-    "have", "has", "had",
-    "do", "does", "did", "doesn't",
+    def _load_stopwords(self) -> Set[str]:
+        """Load stopwords from specs/stopwords.json.
+        
+        Returns:
+            Set of stopwords
+        """
+        stopwords_file = Path("specs/stopwords.json")
+        if stopwords_file.exists():
+            with open(stopwords_file, 'r') as f:
+                data = json.load(f)
+                return set(data.get('stopwords', []))
+        return set()
     
-    # Modals
-    "will", "would", "should", "could",
-    "may", "might", "must",
-    "can", "cannot", "can't",
-    
-    # Prepositions
-    "of", "at", "by", "for", "with", "about", "against",
-    "between", "into", "through", "during",
-    "before", "after", "above", "below",
-    "to", "from", "up", "down",
-    "in", "out", "on", "off", "over", "under",
-    
-    # Conjunctions & Connectors
-    "and", "but", "or", "nor", "so", "yet",
-    "because", "as", "until", "while",
-    
-    # Common adverbs & adjectives
-    "again", "further", "then", "once",
-    "here", "there", "when", "where", "why", "how",
-    "all", "both", "each", "few", "more", "most",
-    "other", "some", "such",
-    "no", "nor", "not", "only",
-    "own", "same", "so", "than", "too", "very",
-    
-    # Fillers & qualifiers
-    "necessary", "really", "just", "quite", "rather",
-    "actually", "basically",
-    
-    # Generic terms
-    "thing", "things", "something", "anything", "everything", "nothing"
-]
+    def filter(self, words: List[str]) -> List[str]:
+        """Remove stopwords from word list.
+        
+        CRITICAL: Must be applied BEFORE lemmatization.
+        
+        Args:
+            words: List of words
+            
+        Returns:
+            Filtered word list
+        """
+        return [word for word in words if word.lower() not in self.stopwords]

@@ -1,1 +1,1 @@
-"""Tests for NLP module"""
+"""Tests for NLP module."""

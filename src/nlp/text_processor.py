@@ -1,60 +1,56 @@
-"""Text processing with exact InfraNodus specifications
+"""Text preprocessing and tokenization."""
 
-Processing order (CRITICAL):
-1. Tokenization
-2. Special character removal
-3. URL removal
-4. Standalone number removal
-5. **Stopwords removal** <- BEFORE lemmatization!
-6. **Lemmatization** <- AFTER stopwords!
-7. Entity extraction (if mode != 'lemmas')
-"""
-
+import re
+from typing import List
 import spacy
-from typing import List, Dict, Tuple
-from .stopwords import ENGLISH_STOPWORDS
 
 
 class TextProcessor:
-    """Process text with exact specifications from research"""
+    """Process text for graph construction following exact specifications."""
     
     def __init__(self, language: str = "en"):
-        """Initialize with spaCy model
+        """Initialize text processor with spaCy model.
         
         Args:
             language: Language code (currently only 'en' supported)
         """
-        if language != "en":
-            raise ValueError("Only English ('en') is currently supported")
-        
-        # Load spaCy model
         self.nlp = spacy.load("en_core_web_sm")
-        self.stopwords = set(ENGLISH_STOPWORDS)
+        self.language = language
     
-    def process(self, text: str, mode: str = "lemmas") -> Dict:
-        """Process text through complete pipeline
+    def preprocess(self, text: str) -> str:
+        """Preprocess text following exact order from specifications.
+        
+        Processing order:
+        1. Tokenize sentences/paragraphs
+        2. Remove special characters
+        3. Remove URLs
+        4. Remove standalone numbers
         
         Args:
-            text: Input text to process
-            mode: NER mode - 'lemmas', 'mixed', or 'entities'
-        
+            text: Raw input text
+            
         Returns:
-            Dictionary with tokens, entities, and metadata
+            Preprocessed text
         """
-        # TODO: Implement complete processing pipeline
-        # 1. Split by paragraph breaks
-        # 2. Process each paragraph
-        # 3. Apply stopwords BEFORE lemmatization
-        # 4. Lemmatize
-        # 5. Extract entities if needed
+        # Remove URLs
+        text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', text)
         
-        raise NotImplementedError("To be implemented in Phase 2")
+        # Remove special characters (keep alphanumeric, spaces, and basic punctuation)
+        text = re.sub(r'[^a-zA-Z0-9\s.,!?\n-]', '', text)
+        
+        # Remove standalone numbers but preserve numbers in words (e.g., COVID-19)
+        text = re.sub(r'\b\d+\b', '', text)
+        
+        return text
     
-    def _remove_stopwords(self, tokens: List[str]) -> List[str]:
-        """Remove stopwords - MUST be before lemmatization"""
-        return [token for token in tokens if token.lower() not in self.stopwords]
-    
-    def _lemmatize(self, tokens: List[str]) -> List[str]:
-        """Lemmatize tokens using spaCy"""
-        # TODO: Implement lemmatization
-        raise NotImplementedError("To be implemented in Phase 2")
+    def tokenize_sentences(self, text: str) -> List[str]:
+        """Tokenize text into sentences.
+        
+        Args:
+            text: Input text
+            
+        Returns:
+            List of sentences
+        """
+        doc = self.nlp(text)
+        return [sent.text for sent in doc.sents]
