@@ -1,1 +1,1 @@
-"""Integration tests for combined functionality."""
+"""Integration tests for complete workflows"""

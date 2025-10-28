@@ -1,1 +1,1 @@
-"""Test fixtures and sample data."""
+"""Test fixtures and sample data"""

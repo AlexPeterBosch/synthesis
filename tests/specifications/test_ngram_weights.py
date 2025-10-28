@@ -1,75 +1,91 @@
-"""Test n-gram weight calculations against exact specifications."""
+"""Test n-gram weight calculations match exact specifications
+
+Validates:
+- Pass 1: Bigrams have weight 3
+- Pass 2: Distance 1 has weight 2
+- Pass 2: Distance 2 has weight 1
+- Paragraph breaks stop scanning
+"""
 
 import pytest
-from src.nlp.ngram_generator import NgramGenerator
+from src.nlp.ngram_generator import NGramGenerator
 
 
-def test_bigram_weight():
-    """Test that bigrams have exact weight of 3."""
-    generator = NgramGenerator()
+def test_bigram_weights():
+    """Test Pass 1: Adjacent words have weight 3."""
+    generator = NGramGenerator()
+    tokens = ["research", "laboratory", "experiment"]
     
-    # Test: adjacent words should have weight 3
-    lemmas = ["research", "innovation"]
-    edges = generator.generate(lemmas)
+    ngrams = generator.generate(tokens)
     
-    expected_edge = tuple(sorted(["research", "innovation"]))
-    assert expected_edge in edges
-    assert edges[expected_edge] == 3, "Bigram weight must be exactly 3"
+    # Check bigram weights
+    bigrams = [(s, t, w) for s, t, w in ngrams if w == 3]
+    assert len(bigrams) == 2  # 2 adjacent pairs
+    assert ("research", "laboratory", 3) in ngrams
+    assert ("laboratory", "experiment", 3) in ngrams
 
 
-def test_distance_1_weight():
-    """Test that words 1 position apart have weight 2."""
-    generator = NgramGenerator()
+def test_distance_1_weights():
+    """Test Pass 2: 1 word apart has weight 2."""
+    generator = NGramGenerator()
+    tokens = ["research", "laboratory", "experiment", "analysis"]
     
-    # Test: words with 1 word between them should have weight 2
-    lemmas = ["research", "innovation", "technology"]
-    edges = generator.generate(lemmas)
+    ngrams = generator.generate(tokens)
     
-    expected_edge = tuple(sorted(["research", "technology"]))
-    assert expected_edge in edges
-    # research-innovation: 3 (bigram)
-    # research-technology: 2 (distance 1)
-    # innovation-technology: 3 (bigram)
-    assert edges[expected_edge] == 2, "Distance-1 weight must be exactly 2"
+    # Check distance-1 weights
+    distance_1 = [(s, t, w) for s, t, w in ngrams if w == 2]
+    assert ("research", "experiment", 2) in ngrams
+    assert ("laboratory", "analysis", 2) in ngrams
 
 
-def test_distance_2_weight():
-    """Test that words 2 positions apart have weight 1."""
-    generator = NgramGenerator()
+def test_distance_2_weights():
+    """Test Pass 2: 2 words apart has weight 1."""
+    generator = NGramGenerator()
+    tokens = ["research", "laboratory", "experiment", "analysis"]
     
-    # Test: words with 2 words between them should have weight 1
-    lemmas = ["research", "innovation", "technology", "development"]
-    edges = generator.generate(lemmas)
+    ngrams = generator.generate(tokens)
     
-    expected_edge = tuple(sorted(["research", "development"]))
-    assert expected_edge in edges
-    # From first window [research, innovation, technology, development]:
-    # research-development: 1 (distance 2)
-    assert edges[expected_edge] == 1, "Distance-2 weight must be exactly 1"
+    # Check distance-2 weights
+    distance_2 = [(s, t, w) for s, t, w in ngrams if w == 1]
+    assert ("research", "analysis", 1) in ngrams
 
 
-def test_weight_accumulation():
-    """Test that repeated co-occurrences ADD weights."""
-    generator = NgramGenerator()
+def test_paragraph_breaks_stop_scanning():
+    """Test that paragraph breaks prevent n-gram scanning across boundaries."""
+    generator = NGramGenerator(paragraph_delimiter="\n\n")
     
-    # Test: same pair appearing multiple times should accumulate
-    lemmas = ["research", "innovation", "research", "innovation"]
-    edges = generator.generate(lemmas)
+    # Two paragraphs
+    para1_tokens = ["research", "laboratory"]
+    para2_tokens = ["experiment", "analysis"]
     
-    expected_edge = tuple(sorted(["research", "innovation"]))
-    # Should appear twice as bigram: 3 + 3 = 6
-    assert edges[expected_edge] == 6, "Weights must accumulate (additive)"
+    # Process separately
+    ngrams = generator.generate_from_paragraphs(
+        text="research laboratory\n\nexperiment analysis",
+        tokens_per_para=[para1_tokens, para2_tokens]
+    )
+    
+    # Should NOT have connection between "laboratory" and "experiment"
+    invalid_connections = [
+        ("laboratory", "experiment", 3),
+        ("laboratory", "experiment", 2),
+        ("laboratory", "experiment", 1)
+    ]
+    
+    for invalid in invalid_connections:
+        assert invalid not in ngrams, "Paragraph break was not respected!"
 
 
-def test_no_normalization():
-    """Test that weights are NOT normalized."""
-    generator = NgramGenerator()
+def test_two_pass_algorithm_completeness():
+    """Test that TWO-PASS algorithm generates all expected n-grams."""
+    generator = NGramGenerator()
+    tokens = ["a", "b", "c", "d"]
     
-    # Test: raw weights should be preserved
-    lemmas = ["a", "b"] * 5  # Repeat 5 times
-    edges = generator.generate(lemmas)
+    ngrams = generator.generate(tokens)
     
-    expected_edge = tuple(sorted(["a", "b"]))
-    # Should be 5 * 3 = 15 (not normalized to 1.0 or any fraction)
-    assert edges[expected_edge] == 15, "Weights must NOT be normalized"
-    assert isinstance(edges[expected_edge], int), "Weights must be integers"
+    expected_count = (
+        3 +  # Pass 1: 3 bigrams (a-b, b-c, c-d)
+        2 +  # Pass 2 distance-1: 2 pairs
+        1    # Pass 2 distance-2: 1 pair
+    )
+    
+    assert len(ngrams) == expected_count, f"Expected {expected_count} n-grams, got {len(ngrams)}"

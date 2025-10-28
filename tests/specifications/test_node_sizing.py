@@ -1,62 +1,74 @@
-"""Test node sizing calculations against exact specifications."""
+"""Test node sizing calculations match exact specifications
+
+Validates:
+- LINEAR scaling (NOT logarithmic)
+- Formula: size = 5 + (bc_normalized * 35)
+- Min size: 5 pixels
+- Max size: 40 pixels
+- Ratio: 8:1
+"""
 
 import pytest
 from src.algorithms.betweenness import BetweennessCentrality
 
 
-def test_node_size_formula():
-    """Test that node size follows exact linear formula."""
-    # Specification: size = 5 + (bc_normalized × 35)
-    
-    betweenness = {
-        "node1": 0.0,    # Min BC
-        "node2": 0.5,    # Mid BC
-        "node3": 1.0,    # Max BC
+def test_linear_scaling():
+    """Test that node sizing uses LINEAR scaling."""
+    bc_values = {
+        "node_a": 0.0,   # Min BC
+        "node_b": 0.5,   # Mid BC
+        "node_c": 1.0    # Max BC
     }
     
-    sizes = BetweennessCentrality.calculate_node_sizes(betweenness)
+    sizes = BetweennessCentrality.calculate_node_sizes(bc_values)
     
-    # Test minimum size
-    assert sizes["node1"] == 5, "Minimum size must be exactly 5 pixels"
+    # Check linear progression
+    assert sizes["node_a"] == 5.0   # Min size
+    assert sizes["node_c"] == 40.0  # Max size
+    assert sizes["node_b"] == 22.5  # Exactly midpoint (linear)
+
+
+def test_size_range():
+    """Test size range is 5-40 pixels."""
+    bc_values = {
+        f"node_{i}": i / 100 for i in range(100)
+    }
     
-    # Test mid-range size (linear)
-    assert sizes["node2"] == 5 + (0.5 * 35), "Mid-range size must follow linear formula"
-    assert sizes["node2"] == 22.5, "Size calculation must be precise"
+    sizes = BetweennessCentrality.calculate_node_sizes(bc_values)
     
-    # Test maximum size
-    assert sizes["node3"] == 40, "Maximum size must be exactly 40 pixels"
+    # All sizes must be in range
+    assert all(5 <= size <= 40 for size in sizes.values())
+    
+    # Min and max should be at boundaries
+    assert min(sizes.values()) == 5.0
+    assert max(sizes.values()) == 40.0
 
 
 def test_size_ratio():
-    """Test that max:min size ratio is exactly 8:1."""
-    min_size = 5
-    max_size = 40
+    """Test max:min ratio is 8:1."""
+    bc_values = {"min_node": 0.0, "max_node": 1.0}
     
-    ratio = max_size / min_size
-    assert ratio == 8.0, "Size ratio must be exactly 8:1"
+    sizes = BetweennessCentrality.calculate_node_sizes(bc_values)
+    
+    ratio = sizes["max_node"] / sizes["min_node"]
+    assert ratio == 8.0, f"Expected 8:1 ratio, got {ratio}:1"
 
 
-def test_linear_not_logarithmic():
-    """Test that sizing is LINEAR, not logarithmic."""
+def test_not_logarithmic():
+    """Test that sizing is NOT logarithmic."""
     import math
     
-    betweenness = {
-        "node1": 0.2,
-        "node2": 0.4,
+    bc_values = {
+        "node_a": 0.0,
+        "node_b": 0.5,
+        "node_c": 1.0
     }
     
-    sizes = BetweennessCentrality.calculate_node_sizes(betweenness)
+    sizes = BetweennessCentrality.calculate_node_sizes(bc_values)
     
-    # Linear: doubling BC should roughly double the size increase
-    size_increase_1 = sizes["node1"] - 5  # 0.2 * 35 = 7
-    size_increase_2 = sizes["node2"] - 5  # 0.4 * 35 = 14
+    # If logarithmic, midpoint would be: 5 + log(0.5+1) * 35 ≈ 29.6
+    # But linear gives: 5 + 0.5 * 35 = 22.5
+    log_size = 5 + math.log(0.5 + 1) * 35
     
-    # In linear formula, doubling BC doubles the increase
-    assert abs(size_increase_2 - (size_increase_1 * 2)) < 0.01, "Sizing must be linear"
-    
-    # If it were logarithmic, this would NOT hold
-    log_size_1 = 5 + (math.log(0.2 + 1) * 35)
-    log_size_2 = 5 + (math.log(0.4 + 1) * 35)
-    
-    # Our implementation should NOT match logarithmic
-    assert sizes["node1"] != pytest.approx(log_size_1), "Must NOT use logarithmic sizing"
+    assert sizes["node_b"] == 22.5, "Sizing is not linear!"
+    assert abs(sizes["node_b"] - log_size) > 5, "Sizing appears logarithmic!"
