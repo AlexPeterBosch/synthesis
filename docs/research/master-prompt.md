@@ -1,6 +1,3 @@
-
-
----
 # Synthesis: UPDATED Master Prompt
 ## Ready-to-Use Prompts with Exact Specifications
 ## English-Only Implementation
