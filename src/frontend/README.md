@@ -1,32 +1,58 @@
 # Synthesis Frontend
 
-React-based frontend for Synthesis knowledge graph visualization.
+React-based frontend for Synthesis knowledge graph system.
 
 ## Technology Stack
 
-- **React 18** - UI framework
-- **Sigma.js** - WebGL graph rendering
-- **Graphology** - Graph data structure
-- **Tailwind CSS** - Styling
-- **Vite** - Build tool
+- **React 18**: UI framework
+- **Sigma.js v2**: WebGL graph visualization
+- **Graphology**: Graph data structure
+- **Tailwind CSS**: Styling
+- **Axios**: HTTP client
 
-## Development
+## Setup
 
 ```bash
-# Install dependencies
+cd src/frontend
 npm install
-
-# Run development server
-npm run dev
-
-# Build for production
-npm run build
+npm start
 ```
 
-## Features
+## Visualization Specifications
 
-- Interactive graph visualization
-- Node sizing based on betweenness centrality
+### Node Sizing
+- **Formula**: size = 5 + (bc_normalized × 35)
+- **Range**: 5-40 pixels
+- **Type**: LINEAR (NOT logarithmic)
+
+### Node Labels
+- Display threshold: > 20 pixels
+- Shows approximately top 30% of nodes
+
+### Edge Thickness
+- **Formula**: thickness = log(weight + 1)
+
+### Colors
 - Community-based coloring
-- ForceAtlas2 layout
-- Real-time graph updates
+- HSL color space
+- Saturation: 75%
+- Lightness: 55%
+
+## Components
+
+- `GraphVisualization`: Main Sigma.js visualization
+- `TextInput`: Text processing interface
+- `GapDisplay`: Structural gap visualization
+- `MetricsPanel`: Graph metrics display
+- `QueryInterface`: GraphRAG query interface
+
+## API Integration
+
+Base URL: `http://localhost:8000/api/v1`
+
+Endpoints:
+- POST `/nlp/process` - Process text
+- POST `/graph/build` - Build graph
+- POST `/gaps/detect` - Detect gaps
+- POST `/graphrag/query` - Query with AI
+- GET `/viz/graph/:id` - Get visualization data

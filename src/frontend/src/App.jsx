@@ -1,31 +1,62 @@
-import React from 'react'
+/**
+ * Main Application Component
+ * 
+ * Synthesis - Text-to-Knowledge-Graph System
+ */
+
+import React, { useState } from 'react';
+import './App.css';
 
 function App() {
+  const [text, setText] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleTextSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      // TODO: Implement API calls
+      console.log('Processing text:', text);
+    } catch (error) {
+      console.error('Error processing text:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      <header className="bg-gray-800 border-b border-gray-700 p-4">
-        <h1 className="text-2xl font-bold">Synthesis</h1>
-        <p className="text-gray-400 text-sm">Knowledge Graph Visualization</p>
+    <div className="App">
+      <header className="App-header">
+        <h1>Synthesis</h1>
+        <p>Text-to-Knowledge-Graph System</p>
       </header>
       
-      <main className="p-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="bg-gray-800 rounded-lg p-6 mb-4">
-            <h2 className="text-xl font-semibold mb-4">Getting Started</h2>
-            <p className="text-gray-300">
-              Upload text or enter a URL to generate a knowledge graph.
-            </p>
-          </div>
-          
-          <div className="bg-gray-800 rounded-lg p-6" style={{ height: '600px' }}>
-            <div className="flex items-center justify-center h-full text-gray-500">
-              Graph visualization will appear here
-            </div>
-          </div>
+      <main className="container mx-auto p-4">
+        <form onSubmit={handleTextSubmit} className="mb-8">
+          <textarea
+            className="w-full p-4 border rounded"
+            rows="10"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Enter your text here..."
+          />
+          <button
+            type="submit"
+            disabled={loading || !text}
+            className="mt-4 px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300"
+          >
+            {loading ? 'Processing...' : 'Analyze Text'}
+          </button>
+        </form>
+        
+        <div id="graph-container" className="w-full h-96 border rounded">
+          {/* Graph visualization will be rendered here */}
+          <p className="text-center text-gray-500 mt-32">Graph will appear here</p>
         </div>
       </main>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
