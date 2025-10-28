@@ -1,0 +1,327 @@
+{
+  "version": "1.0.0",
+  "project": "synthesis",
+  "description": "Validation rules for ensuring exact specification compliance",
+  "last_updated": "2025-10-28",
+  
+  "nlp_validation": {
+    "stopwords": {
+      "rule": "Stopwords must be applied BEFORE lemmatization",
+      "test": "Process text and verify stopwords removed first",
+      "critical": true
+    },
+    "lemmatization": {
+      "rule": "Must use spaCy en_core_web_sm",
+      "test": "Verify 'was' -> 'be', 'companies' -> 'company'",
+      "critical": true
+    },
+    "ngram_weights": {
+      "rule": "Bigrams=3, Distance1=2, Distance2=1",
+      "test": "Verify exact weights in output",
+      "critical": true
+    },
+    "paragraph_breaks": {
+      "rule": "Double newlines (\\n\\n) must stop n-gram scanning",
+      "test": "Verify no connections across paragraph boundaries",
+      "critical": true
+    }
+  },
+  
+  "graph_validation": {
+    "edge_weights": {
+      "rule": "ADDITIVE accumulation, NO normalization",
+      "test": "Sum of all co-occurrence weights must equal final edge weight",
+      "critical": true,
+      "example": "5 bigrams (weight 3 each) = 15, not normalized to 1.0"
+    },
+    "node_types": {
+      "rule": "Must support all 5 types: concept, statement, context, user, narrative",
+      "test": "Database schema includes all types",
+      "critical": false
+    }
+  },
+  
+  "algorithm_validation": {
+    "louvain": {
+      "resolution": {
+        "rule": "Must be exactly 1.0",
+        "test": "Check parameter value",
+        "critical": true
+      },
+      "weighted": {
+        "rule": "Must use edge weights",
+        "test": "Verify communities differ with/without weights",
+        "critical": true
+      }
+    },
+    "forceatlas2": {
+      "gravity": {
+        "rule": "Must be 1.0",
+        "test": "Check parameter value",
+        "critical": true
+      },
+      "scalingRatio": {
+        "rule": "Must be 20.0",
+        "test": "Check parameter value",
+        "critical": true
+      },
+      "strongGravityMode": {
+        "rule": "Must be true",
+        "test": "Check parameter value",
+        "critical": true
+      },
+      "barnesHutOptimize": {
+        "rule": "Must be true for performance",
+        "test": "Check parameter value",
+        "critical": true
+      }
+    },
+    "betweenness": {
+      "algorithm": {
+        "rule": "Must use Brandes' algorithm",
+        "test": "Verify using NetworkX betweenness_centrality",
+        "critical": true
+      },
+      "normalization": {
+        "rule": "Must normalize to 0-1 range",
+        "test": "All BC values between 0 and 1",
+        "critical": true
+      }
+    },
+    "modularity": {
+      "formula": {
+        "rule": "Newman-Girvan weighted modularity",
+        "test": "Verify formula: Q = 1/(2m) Σ[Aij - (kikj)/(2m)]δ(ci,cj)",
+        "critical": true
+      },
+      "thresholds": {
+        "rule": "Q > 0.4 = strong, Q > 0.7 = very strong",
+        "test": "State classification uses correct thresholds",
+        "critical": true
+      }
+    }
+  },
+  
+  "visualization_validation": {
+    "node_sizing": {
+      "rule": "LINEAR: 5 + (bc_normalized * 35)",
+      "test": "BC=0 gives 5px, BC=1 gives 40px",
+      "critical": true,
+      "common_error": "Using logarithmic scaling instead of linear"
+    },
+    "node_labels": {
+      "rule": "Show only for nodes with size > 20 pixels",
+      "test": "Approximately top 30% of nodes show labels",
+      "critical": false
+    },
+    "edge_thickness": {
+      "rule": "log(weight + 1)",
+      "test": "Verify logarithmic scaling",
+      "critical": false
+    },
+    "label_size": {
+      "rule": "Must be 12px",
+      "test": "Check Sigma.js configuration",
+      "critical": false
+    }
+  },
+  
+  "gap_detection_validation": {
+    "min_community_size": {
+      "rule": "Must be exactly 3 nodes",
+      "test": "Communities with < 3 nodes ignored",
+      "critical": true
+    },
+    "max_path_length": {
+      "rule": "Must be exactly 6 hops",
+      "test": "Gaps with path > 6 ignored",
+      "critical": true
+    },
+    "density_threshold": {
+      "rule": "Must be 0.1 (10%)",
+      "test": "Community pairs with > 10% connections ignored",
+      "critical": true
+    },
+    "max_size_ratio": {
+      "rule": "Must be 10:1",
+      "test": "Community size ratio > 10:1 ignored",
+      "critical": true
+    },
+    "min_gap_score": {
+      "rule": "Must be 0.4",
+      "test": "Gaps with score < 0.4 not returned",
+      "critical": true
+    },
+    "max_gaps_returned": {
+      "rule": "Maximum 3 gaps",
+      "test": "Never return more than 3 gaps",
+      "critical": true
+    }
+  },
+  
+  "cognitive_validation": {
+    "biased_uniform": {
+      "rule": "modularity < 0.4 AND entropy < 0.5",
+      "test": "Correct state classification",
+      "explore_ratio": 80,
+      "critical": true
+    },
+    "focused_regular": {
+      "rule": "modularity < 0.4 AND density > 0.7",
+      "test": "Correct state classification",
+      "explore_ratio": 30,
+      "critical": true
+    },
+    "diversified_fractal": {
+      "rule": "0.4 ≤ modularity ≤ 0.7 AND 0.4 ≤ entropy ≤ 0.7",
+      "test": "Correct state classification",
+      "explore_ratio": 50,
+      "optimal": true,
+      "critical": true
+    },
+    "dispersed_complex": {
+      "rule": "modularity > 0.7 AND entropy > 0.7",
+      "test": "Correct state classification",
+      "explore_ratio": 20,
+      "critical": true
+    },
+    "immunity": {
+      "rule": "modularity * entropy",
+      "test": "high > 0.28, medium > 0.16",
+      "critical": true
+    }
+  },
+  
+  "graphrag_validation": {
+    "subgraph_extraction": {
+      "rule": "2-hop neighborhood from matching nodes",
+      "test": "Verify correct hop distance",
+      "critical": true
+    },
+    "context_limits": {
+      "top_concepts": {
+        "rule": "Exactly 10 concepts",
+        "test": "Count concepts in context",
+        "critical": false
+      },
+      "top_relations": {
+        "rule": "Exactly 15 relations",
+        "test": "Count relations in context",
+        "critical": false
+      },
+      "top_gaps": {
+        "rule": "Maximum 5 gaps",
+        "test": "Count gaps in context",
+        "critical": false
+      }
+    }
+  },
+  
+  "performance_validation": {
+    "text_processing": {
+      "rule": "500 words in < 5 seconds",
+      "test": "Measure processing time",
+      "critical": false
+    },
+    "graph_construction": {
+      "rule": "500 nodes in < 10 seconds",
+      "test": "Measure construction time",
+      "critical": false
+    },
+    "louvain": {
+      "rule": "1000 nodes in < 2 seconds",
+      "test": "Measure algorithm time",
+      "critical": false
+    },
+    "forceatlas2": {
+      "rule": "1000 nodes in < 30 seconds",
+      "test": "Measure layout time",
+      "critical": false
+    },
+    "betweenness": {
+      "rule": "500 nodes in < 5 seconds",
+      "test": "Measure calculation time",
+      "critical": false
+    }
+  },
+  
+  "database_validation": {
+    "schema": {
+      "rule": "All 6 tables must exist: users, contexts, nodes, edges, statements, graph_metrics",
+      "test": "Query information_schema",
+      "critical": true
+    },
+    "indexes": {
+      "rule": "GIN index on nodes.properties, composite on edges",
+      "test": "Verify indexes exist",
+      "critical": true
+    },
+    "jsonb_structure": {
+      "rule": "Node properties must include: betweenness_centrality, degree, community_id, color, size",
+      "test": "Verify JSONB structure",
+      "critical": true
+    }
+  },
+  
+  "integration_validation": {
+    "end_to_end": {
+      "rule": "Text -> Graph -> Analysis -> Visualization pipeline complete",
+      "test": "Process sample text through all stages",
+      "critical": true
+    },
+    "api_endpoints": {
+      "rule": "All endpoints return valid responses",
+      "test": "Test each endpoint with sample data",
+      "critical": true
+    }
+  },
+  
+  "common_errors": [
+    {
+      "error": "Applying lemmatization before stopwords",
+      "fix": "Reverse order: stopwords first, then lemmatization",
+      "severity": "critical"
+    },
+    {
+      "error": "Normalizing edge weights",
+      "fix": "Use raw additive weights, no normalization",
+      "severity": "critical"
+    },
+    {
+      "error": "Using logarithmic node sizing",
+      "fix": "Use linear formula: 5 + (bc * 35)",
+      "severity": "critical"
+    },
+    {
+      "error": "Allowing n-grams across paragraph breaks",
+      "fix": "Split by \\n\\n and process separately",
+      "severity": "critical"
+    },
+    {
+      "error": "Wrong modularity thresholds",
+      "fix": "Use 0.4 for strong, 0.7 for very strong",
+      "severity": "critical"
+    },
+    {
+      "error": "Incorrect ForceAtlas2 parameters",
+      "fix": "Use exact values from specs/parameters.json",
+      "severity": "high"
+    },
+    {
+      "error": "Not using weighted algorithms",
+      "fix": "Ensure Louvain and betweenness use edge weights",
+      "severity": "high"
+    }
+  ],
+  
+  "test_cases": {
+    "sample_text": "Companies are analyzing customer feedback using AI tools. Research shows benefits.",
+    "expected_tokens": ["company", "analyze", "customer", "feedback", "use", "ai", "tool", "research", "show", "benefit"],
+    "expected_bigrams": [
+      {"source": "company", "target": "analyze", "weight": 3},
+      {"source": "analyze", "target": "customer", "weight": 3}
+    ],
+    "expected_modularity_range": [0.0, 1.0],
+    "expected_node_size_range": [5, 40]
+  }
+}
