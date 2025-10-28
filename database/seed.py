@@ -1,22 +1,32 @@
-"""Database seeding script for Synthesis."""
+"""Database Seeding Script
+
+Creates test data for development and testing:
+- Test user account
+- Sample context
+- Sample nodes and edges
+- Sample graph metrics
+"""
 
 import asyncio
-from datetime import datetime
 from prisma import Prisma
-import uuid
+import json
+from datetime import datetime
 
 
 async def seed_database():
     """Seed database with test data."""
+    
     db = Prisma()
     await db.connect()
+    
+    print("Seeding database...")
     
     try:
         # Create test user
         user = await db.user.create(
             data={
                 "username": "testuser",
-                "email": "test@synthesis.example.com",
+                "email": "test@synthesis.ai",
                 "subscriptionTier": "free"
             }
         )
@@ -25,90 +35,121 @@ async def seed_database():
         # Create test context
         context = await db.context.create(
             data={
-                "contextName": "@test_graph",
+                "contextName": "@test_context",
                 "userId": user.id,
                 "visibility": "private",
-                "metadata": {"description": "Test knowledge graph"}
+                "metadata": json.dumps({"description": "Test context for development"})
             }
         )
         print(f"Created context: {context.contextName}")
         
-        # Create test nodes
+        # Create sample nodes
         nodes_data = [
-            {"label": "research", "type": "concept"},
-            {"label": "innovation", "type": "concept"},
-            {"label": "technology", "type": "concept"},
-            {"label": "development", "type": "concept"},
-            {"label": "analysis", "type": "concept"},
+            {
+                "nodeId": "node_research",
+                "label": "research",
+                "type": "concept",
+                "userId": user.id,
+                "contextId": context.id,
+                "properties": json.dumps({
+                    "lemma": "research",
+                    "frequency": 5,
+                    "betweenness_centrality": 0.45,
+                    "degree": 8,
+                    "community_id": 1,
+                    "color": "#FF5733",
+                    "size": 25
+                })
+            },
+            {
+                "nodeId": "node_ai",
+                "label": "ai",
+                "type": "concept",
+                "userId": user.id,
+                "contextId": context.id,
+                "properties": json.dumps({
+                    "lemma": "ai",
+                    "frequency": 8,
+                    "betweenness_centrality": 0.62,
+                    "degree": 12,
+                    "community_id": 1,
+                    "color": "#FF5733",
+                    "size": 30
+                })
+            },
+            {
+                "nodeId": "node_tool",
+                "label": "tool",
+                "type": "concept",
+                "userId": user.id,
+                "contextId": context.id,
+                "properties": json.dumps({
+                    "lemma": "tool",
+                    "frequency": 4,
+                    "betweenness_centrality": 0.38,
+                    "degree": 6,
+                    "community_id": 2,
+                    "color": "#33C3FF",
+                    "size": 20
+                })
+            }
         ]
         
         created_nodes = []
         for node_data in nodes_data:
-            node = await db.node.create(
-                data={
-                    "nodeId": str(uuid.uuid4()),
-                    "label": node_data["label"],
-                    "type": node_data["type"],
-                    "userId": user.id,
-                    "contextId": context.id,
-                    "properties": {
-                        "lemma": node_data["label"],
-                        "frequency": 1,
-                        "betweenness_centrality": 0.0
-                    }
-                }
-            )
+            node = await db.node.create(data=node_data)
             created_nodes.append(node)
             print(f"Created node: {node.label}")
         
-        # Create test edges
-        edges = [
-            (0, 1, 5),  # research -> innovation
-            (1, 2, 4),  # innovation -> technology
-            (2, 3, 3),  # technology -> development
-            (3, 4, 2),  # development -> analysis
-            (0, 4, 2),  # research -> analysis
+        # Create sample edges
+        edges_data = [
+            {
+                "edgeId": "edge_1",
+                "sourceNodeId": created_nodes[0].id,
+                "targetNodeId": created_nodes[1].id,
+                "relationshipType": ":TO",
+                "weight": 15  # ADDITIVE weight
+            },
+            {
+                "edgeId": "edge_2",
+                "sourceNodeId": created_nodes[1].id,
+                "targetNodeId": created_nodes[2].id,
+                "relationshipType": ":TO",
+                "weight": 8
+            }
         ]
         
-        for source_idx, target_idx, weight in edges:
-            edge = await db.edge.create(
-                data={
-                    "edgeId": str(uuid.uuid4()),
-                    "sourceNodeId": created_nodes[source_idx].id,
-                    "targetNodeId": created_nodes[target_idx].id,
-                    "relationshipType": ":TO",
-                    "weight": weight
-                }
-            )
-            print(f"Created edge: {created_nodes[source_idx].label} -> {created_nodes[target_idx].label} (weight: {weight})")
+        for edge_data in edges_data:
+            edge = await db.edge.create(data=edge_data)
+            print(f"Created edge: {edge.edgeId} (weight: {edge.weight})")
         
-        # Create test statement
+        # Create sample statement
         statement = await db.statement.create(
             data={
-                "statementId": str(uuid.uuid4()),
-                "text": "Research and innovation drive technology development and analysis.",
+                "statementId": "stmt_1",
+                "text": "AI research tools are revolutionizing scientific discovery.",
                 "sentiment": "positive",
-                "topics": ["research", "innovation", "technology"],
+                "topics": ["AI", "research", "tools"],
                 "contextId": context.id,
                 "userId": user.id
             }
         )
-        print(f"Created statement: {statement.text[:50]}...")
+        print(f"Created statement: {statement.statementId}")
         
-        # Create test metrics
-        metric = await db.graphmetric.create(
+        # Create sample graph metrics
+        metrics = await db.graphmetric.create(
             data={
                 "contextId": context.id,
-                "modularity": 0.45,
-                "influenceEntropy": 0.6,
-                "nodeCount": 5,
-                "edgeCount": 5,
+                "modularity": 0.52,
+                "influenceEntropy": 0.61,
+                "nodeCount": 3,
+                "edgeCount": 2,
                 "communityCount": 2,
-                "avgBetweenness": 0.1,
+                "avgBetweenness": 0.48,
                 "cognitiveState": "diversified_fractal"
             }
         )
-        print(f"Created metrics: modularity={metric.modularity}")
+        print(f"Created graph metrics (modularity: {metrics.modularity})")
         
         print("\nDatabase seeding completed successfully!")
         

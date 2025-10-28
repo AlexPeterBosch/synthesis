@@ -1,8 +1,9 @@
-// Synthesis Prisma Schema
-// PostgreSQL database schema with exact specifications
+// Synthesis Database Schema
+// PostgreSQL with Prisma ORM
+// Exact specifications from InfraNodus research
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client-py"
 }
 
 datasource db {
@@ -11,29 +12,29 @@ datasource db {
 }
 
 model User {
-  id                Int       @id @default(autoincrement())
-  username          String    @unique
-  email             String    @unique
-  apiKey            String?   @map("api_key")
-  subscriptionTier  String?   @map("subscription_tier")
-  createdAt         DateTime  @default(now()) @map("created_at")
+  id                Int         @id @default(autoincrement())
+  username          String      @unique
+  email             String      @unique
+  apiKey            String?     @map("api_key")
+  subscriptionTier  String?     @map("subscription_tier")
+  createdAt         DateTime    @default(now()) @map("created_at")
   
-  nodes     Node[]
-  contexts  Context[]
-  statements Statement[]
+  nodes             Node[]
+  contexts          Context[]
+  statements        Statement[]
   
   @@map("users")
 }
 
 model Context {
-  id          Int      @id @default(autoincrement())
-  contextName String   @unique @map("context_name")
-  userId      Int      @map("user_id")
+  id          Int           @id @default(autoincrement())
+  contextName String        @unique @map("context_name")
+  userId      Int           @map("user_id")
   visibility  String?
-  createdAt   DateTime @default(now()) @map("created_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
   metadata    Json?
   
-  user        User     @relation(fields: [userId], references: [id])
+  user        User          @relation(fields: [userId], references: [id])
   nodes       Node[]
   statements  Statement[]
   metrics     GraphMetric[]
@@ -45,8 +46,8 @@ model Node {
   id         Int      @id @default(autoincrement())
   nodeId     String   @unique @map("node_id")
   label      String?
-  type       String
-  properties Json?
+  type       String   // concept/statement/context/user/narrative
+  properties Json?    // JSONB: lemma, BC, degree, community, color, size, position
   userId     Int?     @map("user_id")
   contextId  Int?     @map("context_id")
   createdAt  DateTime @default(now()) @map("created_at")
@@ -60,6 +61,7 @@ model Node {
   
   @@index([nodeId])
   @@index([type])
+  @@index([userId])
   @@index([contextId])
   @@map("nodes")
 }
@@ -69,8 +71,8 @@ model Edge {
   edgeId           String   @unique @map("edge_id")
   sourceNodeId     Int      @map("source_node_id")
   targetNodeId     Int      @map("target_node_id")
-  relationshipType String   @map("relationship_type")
-  weight           Int      @default(1)
+  relationshipType String   @map("relationship_type") // :TO, :AT, :OF, :IN, :BY, :INTO, :THRU
+  weight           Int      @default(1)  // ADDITIVE, NO normalization
   properties       Json?
   createdAt        DateTime @default(now()) @map("created_at")
   
@@ -80,6 +82,7 @@ model Edge {
   @@unique([sourceNodeId, targetNodeId, relationshipType])
   @@index([sourceNodeId])
   @@index([targetNodeId])
+  @@index([weight])
   @@map("edges")
 }
 
@@ -103,17 +106,18 @@ model Statement {
 model GraphMetric {
   id                Int      @id @default(autoincrement())
   contextId         Int      @map("context_id")
-  modularity        Float?
-  influenceEntropy  Float?   @map("influence_entropy")
+  modularity        Float?   // Newman-Girvan weighted modularity
+  influenceEntropy  Float?   @map("influence_entropy") // Jenks natural breaks
   nodeCount         Int?     @map("node_count")
   edgeCount         Int?     @map("edge_count")
   communityCount    Int?     @map("community_count")
   avgBetweenness    Float?   @map("avg_betweenness")
-  cognitiveState    String?  @map("cognitive_state")
+  cognitiveState    String?  @map("cognitive_state") // biased/focused/diversified/dispersed
   calculatedAt      DateTime @default(now()) @map("calculated_at")
   
   context           Context  @relation(fields: [contextId], references: [id])
   
   @@index([contextId])
+  @@index([calculatedAt])
   @@map("graph_metrics")
 }
